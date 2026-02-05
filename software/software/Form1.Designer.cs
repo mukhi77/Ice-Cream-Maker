@@ -32,16 +32,28 @@
             this.btnStart = new System.Windows.Forms.Button();
             this.lblState = new System.Windows.Forms.Label();
             this.lblSpeed = new System.Windows.Forms.Label();
-            this.lblTempNow = new System.Windows.Forms.Label();
+            this.lblTempMix = new System.Windows.Forms.Label();
             this.label9 = new System.Windows.Forms.Label();
             this.btnConnect = new System.Windows.Forms.Button();
             this.cboPorts = new System.Windows.Forms.ComboBox();
             this.label1 = new System.Windows.Forms.Label();
+            this.lblElapsed = new System.Windows.Forms.Label();
+            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.lblSpeedCmd = new System.Windows.Forms.Label();
+            this.chkOpenLoop = new System.Windows.Forms.CheckBox();
+            this.lblTempBrine = new System.Windows.Forms.Label();
+            this.label3 = new System.Windows.Forms.Label();
+            this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.btnLogging = new System.Windows.Forms.Button();
+            this.trkSpeed = new System.Windows.Forms.TrackBar();
+            this.groupBox1.SuspendLayout();
+            this.groupBox2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.trkSpeed)).BeginInit();
             this.SuspendLayout();
             // 
             // btnStop
             // 
-            this.btnStop.Location = new System.Drawing.Point(279, 76);
+            this.btnStop.Location = new System.Drawing.Point(257, 29);
             this.btnStop.Name = "btnStop";
             this.btnStop.Size = new System.Drawing.Size(256, 31);
             this.btnStop.TabIndex = 30;
@@ -51,9 +63,9 @@
             // 
             // btnStart
             // 
-            this.btnStart.Location = new System.Drawing.Point(16, 76);
+            this.btnStart.Location = new System.Drawing.Point(6, 29);
             this.btnStart.Name = "btnStart";
-            this.btnStart.Size = new System.Drawing.Size(258, 31);
+            this.btnStart.Size = new System.Drawing.Size(245, 31);
             this.btnStart.TabIndex = 29;
             this.btnStart.Text = "Start";
             this.btnStart.UseVisualStyleBackColor = true;
@@ -77,23 +89,23 @@
             this.lblSpeed.TabIndex = 27;
             this.lblSpeed.Text = "Speed: 0";
             // 
-            // lblTempNow
+            // lblTempMix
             // 
-            this.lblTempNow.AutoSize = true;
-            this.lblTempNow.Location = new System.Drawing.Point(208, 42);
-            this.lblTempNow.Name = "lblTempNow";
-            this.lblTempNow.Size = new System.Drawing.Size(40, 20);
-            this.lblTempNow.TabIndex = 23;
-            this.lblTempNow.Text = "36.5";
+            this.lblTempMix.AutoSize = true;
+            this.lblTempMix.Location = new System.Drawing.Point(208, 42);
+            this.lblTempMix.Name = "lblTempMix";
+            this.lblTempMix.Size = new System.Drawing.Size(40, 20);
+            this.lblTempMix.TabIndex = 23;
+            this.lblTempMix.Text = "36.5";
             // 
             // label9
             // 
             this.label9.AutoSize = true;
             this.label9.Location = new System.Drawing.Point(12, 42);
             this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(191, 20);
+            this.label9.Size = new System.Drawing.Size(189, 20);
             this.label9.TabIndex = 22;
-            this.label9.Text = "Current Temperature (°C):";
+            this.label9.Text = "Mixture Temperature (°C):";
             // 
             // btnConnect
             // 
@@ -122,22 +134,118 @@
             this.label1.TabIndex = 24;
             this.label1.Text = "Serial Port:";
             // 
+            // lblElapsed
+            // 
+            this.lblElapsed.AutoSize = true;
+            this.lblElapsed.Location = new System.Drawing.Point(12, 71);
+            this.lblElapsed.Name = "lblElapsed";
+            this.lblElapsed.Size = new System.Drawing.Size(122, 20);
+            this.lblElapsed.TabIndex = 31;
+            this.lblElapsed.Text = "Time Elapsed: 0";
+            // 
+            // groupBox1
+            // 
+            this.groupBox1.Controls.Add(this.lblSpeedCmd);
+            this.groupBox1.Controls.Add(this.chkOpenLoop);
+            this.groupBox1.Controls.Add(this.trkSpeed);
+            this.groupBox1.Location = new System.Drawing.Point(16, 168);
+            this.groupBox1.Name = "groupBox1";
+            this.groupBox1.Size = new System.Drawing.Size(519, 134);
+            this.groupBox1.TabIndex = 32;
+            this.groupBox1.TabStop = false;
+            this.groupBox1.Text = "Open Loop";
+            // 
+            // lblSpeedCmd
+            // 
+            this.lblSpeedCmd.AutoSize = true;
+            this.lblSpeedCmd.Location = new System.Drawing.Point(6, 102);
+            this.lblSpeedCmd.Name = "lblSpeedCmd";
+            this.lblSpeedCmd.Size = new System.Drawing.Size(166, 20);
+            this.lblSpeedCmd.TabIndex = 2;
+            this.lblSpeedCmd.Text = "Manual Speed Cmd: 0";
+            // 
+            // chkOpenLoop
+            // 
+            this.chkOpenLoop.AutoSize = true;
+            this.chkOpenLoop.Location = new System.Drawing.Point(6, 25);
+            this.chkOpenLoop.Name = "chkOpenLoop";
+            this.chkOpenLoop.Size = new System.Drawing.Size(123, 24);
+            this.chkOpenLoop.TabIndex = 0;
+            this.chkOpenLoop.Text = "Open Loop?";
+            this.chkOpenLoop.UseVisualStyleBackColor = true;
+            this.chkOpenLoop.CheckedChanged += new System.EventHandler(this.chkOpenLoop_CheckedChanged);
+            // 
+            // lblTempBrine
+            // 
+            this.lblTempBrine.AutoSize = true;
+            this.lblTempBrine.Location = new System.Drawing.Point(351, 71);
+            this.lblTempBrine.Name = "lblTempBrine";
+            this.lblTempBrine.Size = new System.Drawing.Size(40, 20);
+            this.lblTempBrine.TabIndex = 34;
+            this.lblTempBrine.Text = "36.5";
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(170, 71);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(175, 20);
+            this.label3.TabIndex = 33;
+            this.label3.Text = "Brine Temperature (°C):";
+            // 
+            // groupBox2
+            // 
+            this.groupBox2.Controls.Add(this.btnStop);
+            this.groupBox2.Controls.Add(this.btnStart);
+            this.groupBox2.Location = new System.Drawing.Point(16, 94);
+            this.groupBox2.Name = "groupBox2";
+            this.groupBox2.Size = new System.Drawing.Size(519, 68);
+            this.groupBox2.TabIndex = 35;
+            this.groupBox2.TabStop = false;
+            this.groupBox2.Text = "Closed Loop";
+            // 
+            // btnLogging
+            // 
+            this.btnLogging.Location = new System.Drawing.Point(12, 308);
+            this.btnLogging.Name = "btnLogging";
+            this.btnLogging.Size = new System.Drawing.Size(245, 31);
+            this.btnLogging.TabIndex = 31;
+            this.btnLogging.Text = "Start Logging";
+            this.btnLogging.UseVisualStyleBackColor = true;
+            this.btnLogging.Click += new System.EventHandler(this.btnLogging_Click);
+            // 
+            // trkSpeed
+            // 
+            this.trkSpeed.Location = new System.Drawing.Point(6, 53);
+            this.trkSpeed.Name = "trkSpeed";
+            this.trkSpeed.Size = new System.Drawing.Size(507, 69);
+            this.trkSpeed.TabIndex = 36;
+            this.trkSpeed.Scroll += new System.EventHandler(this.trkSpeed_Scroll);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(546, 409);
-            this.Controls.Add(this.btnStop);
-            this.Controls.Add(this.btnStart);
+            this.Controls.Add(this.btnLogging);
+            this.Controls.Add(this.groupBox2);
+            this.Controls.Add(this.lblTempBrine);
+            this.Controls.Add(this.label3);
+            this.Controls.Add(this.groupBox1);
+            this.Controls.Add(this.lblElapsed);
             this.Controls.Add(this.lblState);
             this.Controls.Add(this.lblSpeed);
-            this.Controls.Add(this.lblTempNow);
+            this.Controls.Add(this.lblTempMix);
             this.Controls.Add(this.label9);
             this.Controls.Add(this.btnConnect);
             this.Controls.Add(this.cboPorts);
             this.Controls.Add(this.label1);
             this.Name = "Form1";
             this.Text = "Form1";
+            this.groupBox1.ResumeLayout(false);
+            this.groupBox1.PerformLayout();
+            this.groupBox2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.trkSpeed)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -149,11 +257,20 @@
         private System.Windows.Forms.Button btnStart;
         private System.Windows.Forms.Label lblState;
         private System.Windows.Forms.Label lblSpeed;
-        private System.Windows.Forms.Label lblTempNow;
+        private System.Windows.Forms.Label lblTempMix;
         private System.Windows.Forms.Label label9;
         private System.Windows.Forms.Button btnConnect;
         private System.Windows.Forms.ComboBox cboPorts;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label lblElapsed;
+        private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.CheckBox chkOpenLoop;
+        private System.Windows.Forms.Label lblSpeedCmd;
+        private System.Windows.Forms.Label lblTempBrine;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.GroupBox groupBox2;
+        private System.Windows.Forms.Button btnLogging;
+        private System.Windows.Forms.TrackBar trkSpeed;
     }
 }
 

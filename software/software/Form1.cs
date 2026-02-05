@@ -30,6 +30,15 @@ namespace software
         const double T_lo = 23.0;
         byte directionByte = 45;
 
+        // Logger
+        private bool loggingEnabled = false;
+
+        private int lastLoggedMinute = -1;
+        private byte lastLoggedState = 255;
+
+        private readonly object logLock = new object();
+
+
         public Form1()
         {
             InitializeComponent();
@@ -103,31 +112,46 @@ namespace software
             sp.Read(temp, 0, n);
             buffer.AddRange(temp);
 
-            while (buffer.Count >= 5)
+            // Frame: [0xFF][mixLo][mixHi][brineLo][brineHi][speed][state]
+            while (buffer.Count >= 7)
             {
-                if (buffer[0] != 0xFF)
-                {
-                    buffer.RemoveAt(0);
-                    continue;
-                }
+                int start = buffer.IndexOf(0xFF);
+                if (start < 0) { buffer.Clear(); return; }
+                if (start > 0) buffer.RemoveRange(0, start);
+                if (buffer.Count < 7) return;
 
-                byte tLo = buffer[1];
-                byte tHi = buffer[2];
-                byte speed = buffer[3];
-                byte state = buffer[4];
-                buffer.RemoveRange(0, 5);
+                byte mixLo = buffer[1];
+                byte mixHi = buffer[2];
+                byte brLo = buffer[3];
+                byte brHi = buffer[4];
+                byte speed = buffer[5];
+                byte state = buffer[6];
+                buffer.RemoveRange(0, 7);
 
-                short tempX100 = (short)(tLo | (tHi << 8));
-                double tempC = tempX100 / 100.0;
+                short mixX100 = (short)(mixLo | (mixHi << 8));
+                short brX100 = (short)(brLo | (brHi << 8));
+
+                double Tmix = mixX100 / 100.0;
+                double Tbr = brX100 / 100.0;
 
                 BeginInvoke(new Action(() =>
                 {
-                    lblTempNow.Text = $"{tempC:F2} °C";
+                    lblTempMix.Text = $"{Tmix:F2} °C";
+                    lblTempBrine.Text = $"{Tbr:F2} °C";
                     lblSpeed.Text = $"Speed: {speed}";
                     lblState.Text = $"State: {StateName(state)}";
                 }));
+
+                double elapsedSeconds = cycleSw.Elapsed.TotalSeconds;
+                string mode = chkOpenLoop.Checked ? "OPEN" : "CLOSED";
+
+                MaybeLog(elapsedSeconds, state, speed, Tmix, Tbr, mode);
             }
         }
+
+        private readonly System.Diagnostics.Stopwatch cycleSw = new System.Diagnostics.Stopwatch();
+        private System.Windows.Forms.Timer uiTimer;
+
 
         //private void Sp_DataReceived(object sender, SerialDataReceivedEventArgs e)
         //{
@@ -189,13 +213,6 @@ namespace software
         //}
 
 
-        private double ApplyCompensation(double tempC)
-        {
-            double adj = (tempC);
-            return adj;
-        }
-
-        private byte lastSpeed = 255;
         //private void EvaluateMotorControl(double tempC)
         //{
         //    byte speed;
@@ -226,12 +243,36 @@ namespace software
 
         private void btnStart_Click(object sender, EventArgs e)
         {
-            if (sp.IsOpen) sp.Write(new byte[] { (byte)'S' }, 0, 1);
+            if (sp.IsOpen)
+            {
+                sp.Write(new byte[] { (byte)'S' }, 0, 1);
+
+                cycleSw.Reset();
+                cycleSw.Start();
+
+                if (uiTimer == null)
+                {
+                    uiTimer = new System.Windows.Forms.Timer();
+                    uiTimer.Interval = 250;
+                    uiTimer.Tick += (s, e2) =>
+                    {
+                        var t = cycleSw.Elapsed;
+                        lblElapsed.Text = $"Time Elapsed: {(int)t.TotalMinutes:00}:{t.Seconds:00}";
+                    };
+                }
+                uiTimer.Start();
+            }
         }
 
         private void btnStop_Click(object sender, EventArgs e)
         {
-            if (sp.IsOpen) sp.Write(new byte[] { (byte)'X' }, 0, 1);
+            if (sp.IsOpen)
+            {
+                sp.Write(new byte[] { (byte)'X' }, 0, 1);
+                cycleSw.Stop();
+                uiTimer?.Stop();
+                lblElapsed.Text = "Time Elapsed: 0";
+            }
         }
 
         private string StateName(byte s)
@@ -264,5 +305,111 @@ namespace software
                 lblSpeed.Text = $"Speed: {speed}";
             }
         }
+
+        private void chkOpenLoop_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!sp.IsOpen) return;
+
+            byte cmd = chkOpenLoop.Checked ? (byte)'O' : (byte)'C';
+            sp.Write(new byte[] { cmd }, 0, 1);
+        }
+
+        private byte _lastManualSpeed = 255;
+
+        private void trkSpeed_Scroll(object sender, EventArgs e)
+        {
+            if (!sp.IsOpen) return;
+            if (!chkOpenLoop.Checked) return; // only send in open-loop
+
+            byte speed = (byte)trkSpeed.Value; // set slider max = 170
+
+            if (speed == _lastManualSpeed) return;
+
+            byte[] frame = new byte[] { 0xFE, speed };
+            sp.Write(frame, 0, frame.Length);
+
+            lblSpeedCmd.Text = $"Manual Speed Cmd: {speed}";
+            _lastManualSpeed = speed;
+        }
+
+        private void StartLogging()
+        {
+            if (loggingEnabled) return;
+
+            string folder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                "MECH423_Logs"
+            );
+            Directory.CreateDirectory(folder);
+
+            string file = Path.Combine(folder, $"run_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+
+            logWriter = new StreamWriter(file, append: false);
+            logWriter.AutoFlush = true;
+
+            logWriter.WriteLine("timestamp_s,elapsed_mmss,state,speed,T_mix_C,T_brine_C,dT_C,mode,reason");
+
+            loggingEnabled = true;
+            lastLoggedMinute = -1;
+            lastLoggedState = 255;
+        }
+
+        private void StopLogging()
+        {
+            loggingEnabled = false;
+
+            lock (logLock)
+            {
+                logWriter?.Flush();
+                logWriter?.Dispose();
+                logWriter = null;
+            }
+        }
+
+        private void MaybeLog(double elapsedSeconds, byte state, byte speed, double Tmix, double Tbrine, string mode)
+        {
+            if (!loggingEnabled || logWriter == null) return;
+
+            int minute = (int)(elapsedSeconds / 60.0);
+
+            bool minuteChanged = minute != lastLoggedMinute;
+            bool stateChanged = state != lastLoggedState;
+
+            if (!minuteChanged && !stateChanged) return;
+
+            string reason = stateChanged ? "state_change" : "minute";
+            double dT = Tmix - Tbrine;
+
+            string elapsedMMSS = $"{minute:00}:{(int)(elapsedSeconds % 60):00}";
+            string line = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "{0:F1},{1},{2},{3},{4:F2},{5:F2},{6:F2},{7},{8}",
+                elapsedSeconds, elapsedMMSS, StateName(state), speed, Tmix, Tbrine, dT, mode, reason
+            );
+
+            lock (logLock)
+            {
+                logWriter.WriteLine(line);
+            }
+
+            if (minuteChanged) lastLoggedMinute = minute;
+            if (stateChanged) lastLoggedState = state;
+        }
+
+        private void btnLogging_Click(object sender, EventArgs e)
+        {
+            if (!loggingEnabled)
+            {
+                StartLogging();
+                btnLogging.Text = "Stop Logging";
+            }
+            else
+            {
+                StopLogging();
+                btnLogging.Text = "Start Logging";
+            }
+        }
+
+        
     }
 }

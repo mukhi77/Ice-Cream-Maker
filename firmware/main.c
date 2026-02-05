@@ -15,24 +15,39 @@ static const float KELVIN = 273.15f;
 
 volatile uint8_t  g_sendStatus = 1;   // you can gate this with a command
 
+typedef enum { MODE_CLOSED = 0, MODE_OPEN = 1 } control_mode_t;
+
+volatile control_mode_t g_mode = MODE_CLOSED;
+volatile uint8_t g_openTargetSpeed = 0;   // 0..170
+
+
 typedef enum {
     ST_IDLE = 0,
-    ST_PRECOOL = 1,
-    ST_CHURN_RAMP = 2,
-    ST_CHURN_CONTROL = 3,
-    ST_ANTI_JAM = 4,
-    ST_FINISH = 5,
-    ST_FAULT = 6
+    ST_CHURN = 1,
+    ST_SETTLE = 2,
+    ST_FINISH = 3,
+    ST_FAULT = 4
 } sm_state_t;
 
 volatile sm_state_t g_state = ST_IDLE;
-volatile uint8_t g_enabled = 0;      // set by UART 'S'/'X'
+volatile uint8_t g_enabled = 0;   // 'S' starts, 'X' stops (manual safety)
+
 volatile uint8_t g_speedCmd = 0;     // 0..170
 volatile int16_t  g_tempC_x100 = 0;  // temperature *100 for C#
 
 // Temperature setpoints (C)
-static const float T_PRECHURN = 25.0f; // To be calibrated => -2.0f;
-static const float T_DONE     = 17.0f; // To be calibrated => -6.0f;
+#define TMIX_TO_SETTLE   2.0f
+#define TMIX_TO_CHURN   -2.0f
+#define TBRINE_FAULT     0.0f
+
+#define N_STABLE 15          // 1.5 s at 10 Hz
+#define N_FAULT  20          // 2.0 s at 10 Hz
+#define N_FINISH 20          // 2.0 s at 10 Hz (finish confirmation)
+
+// Define ADC
+#define ADC_CH_MIX    ADC10INCH_0   // A0 on P1.0
+#define ADC_CH_BRINE  ADC10INCH_1   // A1 on P1.1  (change if needed)
+
 
 // Speeds (0..170)
 #define SPD_OFF     0
@@ -48,11 +63,16 @@ static const float T_DONE     = 17.0f; // To be calibrated => -6.0f;
 #define AJ_PAUSE_TICKS  2   // 0.2 s
 #define AJ_FWD_TICKS    4   // 0.4 s
 
-static uint8_t cnt_prechurn = 0;
-static uint8_t cnt_done = 0;
-
 #define SAT_INC(x, max) do { if ((x) < (max)) (x)++; } while(0)
 
+#define CTRL_HZ          10
+#define MIN_CYCLE_SEC    (20U * 60U)   // 1200 s ice cream making minimum time
+
+static uint32_t elapsedTicks = 0;      // increments only while enabled
+static uint8_t cnt_toSettle = 0;
+static uint8_t cnt_toChurn  = 0;
+static uint8_t cnt_brineFault = 0;
+static uint8_t cnt_finish = 0;
 
 
 // =======================
@@ -67,14 +87,6 @@ static uint8_t cnt_done = 0;
 // static const float T0     = 274.35f;    // Kelvin
 // static const float BETA   = 3332.617217f;
 // static const float KELVIN = 273.15f;
-
-#define TEMP_1          30
-#define TEMP_2          20
-#define TEMP_3          10
-#define SPEED_1         10
-#define SPEED_2         20
-#define SPEED_3         30
-#define SPEED_4         40
 
 #define NUM_STATES      8
 
@@ -234,19 +246,21 @@ void init_gpio(void)
 
 void init_ADC(void)
 {
-    // Set up ADC
-        // Select ADC function for P1.0 (ADC channel A0)
-    P1SEL0 |= BIT0;  // set bit
-    P1SEL1 |= BIT0;  // set bit
+    // Enable analog function on P1.0 (A0) AND P1.1 (A1)
+    P1SEL0 |= BIT0 | BIT1;
+    P1SEL1 |= BIT0 | BIT1;
 
-        // Turn on ADC10_B
-    ADC10CTL0 &= ~ADC10ENC;                         // Disable ADC before configuration
-    ADC10CTL0 |= ADC10SHT_2 | ADC10ON;              // 16 x ADC10CLKs, turn on ADC
-    ADC10CTL1 |= ADC10SHP;                          // Use sampling timer
-    ADC10CTL2 |= ADC10RES;                          // 10-bit resolution
-    ADC10MCTL0 |= ADC10SREF_0 | ADC10INCH_0;        // V+ = AVCC, V- = AVSS, start with A0
-    ADC10CTL0 |= ADC10ENC;                          // Enable ADC
+    ADC10CTL0 &= ~ADC10ENC;                // Disable ADC before configuration
+    ADC10CTL0 |= ADC10SHT_2 | ADC10ON;     // 16 x ADC10CLKs, turn on ADC
+    ADC10CTL1 |= ADC10SHP;                 // Use sampling timer
+    ADC10CTL2 |= ADC10RES;                 // 10-bit resolution
+
+    // Start with MIX channel; we will switch channels during runtime
+    ADC10MCTL0 = ADC10SREF_0 | ADC_CH_MIX;
+
+    ADC10CTL0 |= ADC10ENC;                 // Enable ADC
 }
+
 
 void init_temp_timer(void)
 {
@@ -424,10 +438,15 @@ static float adc_to_tempC(uint16_t adc)
     return Tk - KELVIN;
 }
 
-static uint16_t read_adc_avg8(void)
+static uint16_t read_adc_avg8_channel(uint8_t inch)
 {
     uint32_t sum = 0;
     uint8_t i;
+
+    // Must disable ENC before changing channel
+    ADC10CTL0 &= ~ADC10ENC;
+    ADC10MCTL0 = (ADC10SREF_0 | inch);
+    ADC10CTL0 |= ADC10ENC;
 
     for (i = 0; i < 8; i++)
     {
@@ -435,6 +454,7 @@ static uint16_t read_adc_avg8(void)
         while (ADC10CTL1 & ADC10BUSY);
         sum += ADC10MEM0;
     }
+
     return (uint16_t)(sum / 8);
 }
 
@@ -443,12 +463,20 @@ static uint16_t read_adc_avg8(void)
 // STATE MACHINE LOGIC
 // =======================
 
-// static uint8_t decide_speed_from_temp(float tempC)
-// {
-//     if (tempC >= T_HI) return 10;
-//     if (tempC <= T_LO) return 100;
-//     return 50;
-// }
+// Consecutive Condition Counter
+static uint8_t hold_count(uint8_t cond, uint8_t *pCnt, uint8_t nTicks)
+{
+    if (cond)
+    {
+        if (*pCnt < nTicks) (*pCnt)++;
+    }
+    else
+    {
+        *pCnt = 0;
+    }
+    return (*pCnt >= nTicks);
+}
+
 
 static void apply_speed(uint8_t speed)
 {
@@ -469,108 +497,209 @@ static void apply_speed(uint8_t speed)
     }
 }
 
-static uint16_t stateTicks = 0;     // ticks since state entered (10 Hz)
-static uint16_t rampTicks = 0;
+// static uint16_t stateTicks = 0;     // ticks since state entered (10 Hz)
+// static uint16_t rampTicks = 0;
 
 static void set_state(sm_state_t s)
 {
     g_state = s;
-    stateTicks = 0;
-    rampTicks = 0;
-
-    // Reset “condition stability” buffers
-    cnt_prechurn = 0;
-    cnt_done = 0;
+    cnt_toSettle = 0;
+    cnt_toChurn = 0;
+    cnt_brineFault = 0;
+    cnt_finish = 0;
 }
 
-static void sm_update(float tempC)
+
+static void sm_update(float T_mix, float T_brine)
 {
+    uint32_t elapsedSec;
+
+
+    // --- manual STOP always wins (safety feature) ---
     if (!g_enabled)
     {
-        set_state(ST_IDLE);
-        apply_speed(SPD_OFF);
+        // If you want timer reset on stop, do it here (or in UART 'X')
+        // elapsedTicks = 0;
+
+        g_state = ST_IDLE;
+        cnt_toSettle = 0;
+        cnt_toChurn = 0;
+        cnt_brineFault = 0;
+        cnt_finish = 0;
+        apply_speed(0);
         return;
     }
 
+    // Firmware-owned elapsed time (no serial streaming)
+    elapsedSec = elapsedTicks / CTRL_HZ;
+
+    // --- Brine fault (sustained) ---
+    // If brine is above 0C for N_FAULT ticks -> FAULT
+    if (hold_count((T_brine > TBRINE_FAULT), &cnt_brineFault, N_FAULT))
+    {
+        g_state = ST_FAULT;
+    }
+
+    // --- Finish gate (sustained): ONLY after >=20 min AND cold enough ---
+    // This check is placed outside the switch so it can trigger from CHURN or SETTLE.
+    if (elapsedSec >= MIN_CYCLE_SEC)
+    {
+        if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_finish, N_FINISH))
+        {
+            g_state = ST_FINISH;
+        }
+    }
+    else
+    {
+        cnt_finish = 0; // not eligible yet
+    }
+
+    // --- State actions and CHURN <-> SETTLE cycling ---
     switch (g_state)
     {
         case ST_IDLE:
-            apply_speed(SPD_OFF);
-            set_state(ST_PRECOOL);
+            // If enabled, start directly in CHURN (no PRECOOL)
+            g_state = ST_CHURN;
+            cnt_toSettle = 0;
+            cnt_toChurn = 0;
+            apply_speed(SPD_CHURN);
             break;
 
-        case ST_PRECOOL:
-            apply_speed(SPD_PRECOOL);
-            if (tempC <= T_PRECHURN)
-                SAT_INC(cnt_prechurn, 15);   // 15 ticks @10Hz = 1.5s
-            else
-                cnt_prechurn = 0;
-
-            if (cnt_prechurn >= 15)
-            {
-                cnt_prechurn = 0;
-                set_state(ST_CHURN_RAMP);
-            }
-            break;
-
-        case ST_CHURN_RAMP:
-        {
-            // linear ramp from PRECOOL -> CHURN over RAMP_TICKS
-            uint16_t t = rampTicks;
-            uint8_t spd;
-
-            if (t >= RAMP_TICKS) t = RAMP_TICKS;
-            spd = (uint8_t)(SPD_PRECOOL + (uint32_t)(SPD_CHURN - SPD_PRECOOL) * t / RAMP_TICKS);
-
-            apply_speed(spd);
-
-            if (rampTicks >= RAMP_TICKS)
-                set_state(ST_CHURN_CONTROL);
-
-            rampTicks++;
-            break;
-        }
-
-        case ST_CHURN_CONTROL:
+        case ST_CHURN:
             apply_speed(SPD_CHURN);
 
-            // Done condition: cold enough for 3 seconds
-            if (tempC <= T_DONE)
-                SAT_INC(cnt_done, 30);       // 30 ticks @10Hz = 3.0s
-            else
-                cnt_done = 0;
-
-            if (cnt_done >= 30)
+            if (elapsedSec >= MIN_CYCLE_SEC)
             {
-                cnt_done = 0;
-                set_state(ST_FINISH);
+                if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_finish, N_FINISH))
+                    set_state(ST_FINISH);
             }
-            // Later: add current-based anti-jam trigger here
+            else
+            {
+                cnt_finish = 0;
+            }
+
+            // Go to SETTLE if mix warms to +2C for N_STABLE ticks
+            if (hold_count((T_mix >= TMIX_TO_SETTLE), &cnt_toSettle, N_STABLE))
+            {
+                g_state = ST_SETTLE;
+                cnt_toChurn = 0;
+            }
             break;
 
-        case ST_ANTI_JAM:
-            // Placeholder until current sensing is integrated
-            set_state(ST_CHURN_CONTROL);
+        case ST_SETTLE:
+            // Rest state: motor OFF
+            apply_speed(0);
+
+            // Return to CHURN if mix cools to -2C for N_STABLE ticks
+            if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_toChurn, N_STABLE))
+            {
+                g_state = ST_CHURN;
+                cnt_toSettle = 0;
+            }
             break;
 
         case ST_FINISH:
-            apply_speed(SPD_FINISH);
-            if (stateTicks >= 50) // 5 seconds
-            {
-                g_enabled = 0;
-                set_state(ST_IDLE);
-                apply_speed(SPD_OFF);
-            }
+            // End behavior: keep motor OFF (safe default).
+            // User can still hit STOP; you can also auto-stop if desired.
+            apply_speed(0);
             break;
 
         case ST_FAULT:
         default:
-            apply_speed(SPD_OFF);
+            apply_speed(0);
             break;
     }
-
-    stateTicks++;
 }
+// static void sm_update(float tempC)
+// {
+//     // Elapsed time
+//     uint32_t elapsedSec = elapsedTicks / CTRL_HZ
+//     if (!g_enabled)
+//     {
+//         set_state(ST_IDLE);
+//         apply_speed(SPD_OFF);
+//         return;
+//     }
+
+//     switch (g_state)
+//     {
+//         case ST_IDLE:
+//             apply_speed(SPD_OFF);
+//             set_state(ST_PRECOOL);
+//             break;
+
+//         case ST_PRECOOL:
+//             apply_speed(SPD_PRECOOL);
+//             if (tempC <= T_PRECHURN)
+//                 SAT_INC(cnt_prechurn, 15);   // 15 ticks @10Hz = 1.5s
+//             else
+//                 cnt_prechurn = 0;
+
+//             if (cnt_prechurn >= 15)
+//             {
+//                 cnt_prechurn = 0;
+//                 set_state(ST_CHURN_RAMP);
+//             }
+//             break;
+
+//         case ST_CHURN_RAMP:
+//         {
+//             // linear ramp from PRECOOL -> CHURN over RAMP_TICKS
+//             uint16_t t = rampTicks;
+//             uint8_t spd;
+
+//             if (t >= RAMP_TICKS) t = RAMP_TICKS;
+//             spd = (uint8_t)(SPD_PRECOOL + (uint32_t)(SPD_CHURN - SPD_PRECOOL) * t / RAMP_TICKS);
+
+//             apply_speed(spd);
+
+//             if (rampTicks >= RAMP_TICKS)
+//                 set_state(ST_CHURN_CONTROL);
+
+//             rampTicks++;
+//             break;
+//         }
+
+//         case ST_CHURN_CONTROL:
+//             apply_speed(SPD_CHURN);
+
+//             // Done condition: cold enough for 3 seconds
+//             if (tempC <= T_DONE)
+//                 SAT_INC(cnt_done, 30);       // 30 ticks @10Hz = 3.0s
+//             else
+//                 cnt_done = 0;
+
+//             if (cnt_done >= 30)
+//             {
+//                 cnt_done = 0;
+//                 set_state(ST_FINISH);
+//             }
+//             // Later: add current-based anti-jam trigger here
+//             break;
+
+//         case ST_ANTI_JAM:
+//             // Placeholder until current sensing is integrated
+//             set_state(ST_CHURN_CONTROL);
+//             break;
+
+//         case ST_FINISH:
+//             apply_speed(SPD_FINISH);
+//             if (stateTicks >= 50) // 5 seconds
+//             {
+//                 g_enabled = 0;
+//                 set_state(ST_IDLE);
+//                 apply_speed(SPD_OFF);
+//             }
+//             break;
+
+//         case ST_FAULT:
+//         default:
+//             apply_speed(SPD_OFF);
+//             break;
+//     }
+
+//     stateTicks++;
+// }
 
 
 
@@ -582,6 +711,8 @@ static void sm_update(float tempC)
 volatile uint8_t rx_state = 0;          // 0 = waiting for direction, 1 = waiting for magnitude
 volatile int8_t velocity_direction = 0; // +1 or -1
 volatile uint8_t velocity_magnitude = 0;
+static uint8_t ol_expectSpeed = 0;
+
 
 // UART RX ISR
 #pragma vector=USCI_A0_VECTOR
@@ -595,43 +726,51 @@ __interrupt void USCI_A0_ISR(void)
     {
         uint8_t ch = UCA0RXBUF;
 
+        // Open/Closed Loop Control Command
+        if (ch == 'C') { g_mode = MODE_CLOSED; break; } // closed-loop
+        if (ch == 'O') { g_mode = MODE_OPEN;   break; } // open-loop
+
         // Start/Stop/Reset commands
-        if (ch == 'S') { g_enabled = 1; if (g_state == ST_IDLE) set_state(ST_PRECOOL); break; }
-        if (ch == 'X') { g_enabled = 0; set_state(ST_IDLE); apply_speed(SPD_OFF); break; }
+        if (ch == 'S')
+        {
+            g_enabled = 1;
+            elapsedTicks = 0;
+            set_state(ST_CHURN);
+            break;
+        }
+
+        if (ch == 'X')
+        {
+            g_enabled = 0;
+            elapsedTicks = 0;
+            set_state(ST_IDLE);
+            apply_speed(0);
+            break;
+        }
         if (ch == 'R') { if (g_state == ST_FAULT) { g_enabled = 0; set_state(ST_IDLE); } break; }
 
-        // Optional direction set
-        if (ch == '+') { direction = +1; break; }
-        if (ch == '-') { direction = -1; break; }
-
-
-        // if (ch == 'S') { 
-        //     g_enabled = 1; 
-        //     runContinuous = 1; 
-        //     rx_state = 0; 
-        //     break; 
-        // }
-        // if (ch == 'X') { 
-        //     g_enabled = 0; 
-        //     runContinuous = 0; 
-        //     stepPeriodTicks = 0; 
-        //     rx_state = 0; 
-        //     break; 
-        // }
-
-
-        // Single-step commands
-        if (ch == 'a') {            // CW single half-step
-            runContinuous = 0;
-            stepper_step_once(+1);
-            break;
-        }
-        else if (ch == 'b') {       // CCW single half-step
-            runContinuous = 0;
-            stepper_step_once(-1);
+        // Open-loop frame: 0xFE, speed
+        if (ch == 0xFE)
+        {
+            ol_expectSpeed = 1;
             break;
         }
 
+        if (ol_expectSpeed)
+        {
+            ol_expectSpeed = 0;
+
+            // Only accept open-loop speed if in open-loop mode
+            if (g_mode == MODE_OPEN)
+            {
+                uint8_t spd = ch;
+                if (spd > 170) spd = 170;
+                g_openTargetSpeed = spd;
+            }
+            break;
+        }
+
+        // OBSOLETE
         if (rx_state == 0)
         {
             // Expecting direction byte
@@ -703,37 +842,68 @@ __interrupt void TIMER0_A0_ISR(void)
     stepper_apply_state();
 }
 
-
+volatile int16_t g_mixC_x100 = 0;
+volatile int16_t g_brineC_x100 = 0;
 
 #pragma vector = TIMER1_A0_VECTOR
 __interrupt void TIMER1_A0_ISR(void)
 {
-    static uint16_t adc_filt = 0;
-    static uint8_t adc_init = 0;
+    static uint16_t mix_filt = 0;
+    static uint16_t brine_filt = 0;
+    static uint8_t init = 0;
 
-    uint16_t adc;
-    float tempC;
+    uint16_t adc_mix = read_adc_avg8_channel(ADC_CH_MIX);
+    uint16_t adc_brine = read_adc_avg8_channel(ADC_CH_BRINE);
 
-    // 1) sample and average
-    adc = read_adc_avg8();
-
-    // 2) EMA filter on ADC: 90/10
-    if (!adc_init)
+        // increment timer
+    if (g_enabled)
     {
-        adc_filt = adc;
-        adc_init = 1;
+        elapsedTicks++;
     }
     else
     {
-        adc_filt = (uint16_t)((9U * adc_filt + 1U * adc) / 10U);
+        elapsedTicks = 0;
+    }
+    if (!init)
+    {
+        mix_filt = adc_mix;
+        brine_filt = adc_brine;
+        init = 1;
+    }
+    else
+    {
+        // EMA 90/10 on ADC counts
+        mix_filt   = (uint16_t)((9U * mix_filt   + 1U * adc_mix) / 10U);
+        brine_filt = (uint16_t)((9U * brine_filt + 1U * adc_brine) / 10U);
     }
 
-    // 3) convert to temperature (you already have adc_to_tempC())
-    tempC = adc_to_tempC(adc_filt);
-    g_tempC_x100 = (int16_t)(tempC * 100.0f);
+    // Convert to temperature
+
+    float T_mix = adc_to_tempC(mix_filt);
+    float T_brine = adc_to_tempC(brine_filt);
+
+    g_mixC_x100 = (int16_t)(T_mix * 100.0f);
+    g_brineC_x100 = (int16_t)(T_brine * 100.0f);
+
 
     // 4) update state machine
-    sm_update(tempC);
+    if (g_mode == MODE_CLOSED)
+    {
+        sm_update(T_mix, T_brine);
+    }
+    else // MODE_OPEN
+    {
+        // Keep state for reporting if you want:
+        // g_state = ST_CHURN; (or a dedicated ST_OPENLOOP if you add it)
+        if (!g_enabled || g_state == ST_FAULT)
+        {
+            apply_speed(0);
+        }
+        else
+        {
+            apply_speed(g_openTargetSpeed);
+        }
+    }
 
     // 5) send status at 5 Hz
     {
@@ -743,10 +913,18 @@ __interrupt void TIMER1_A0_ISR(void)
         {
             decim = 0;
             uart_send(0xFF);
-            uart_send((uint8_t)(g_tempC_x100 & 0xFF));
-            uart_send((uint8_t)((g_tempC_x100 >> 8) & 0xFF));
+
+            // mix temp
+            uart_send((uint8_t)(g_mixC_x100 & 0xFF));
+            uart_send((uint8_t)((g_mixC_x100 >> 8) & 0xFF));
+
+            // brine temp
+            uart_send((uint8_t)(g_brineC_x100 & 0xFF));
+            uart_send((uint8_t)((g_brineC_x100 >> 8) & 0xFF));
+
             uart_send(g_speedCmd);
             uart_send((uint8_t)g_state);
+
         }
     }
 }
