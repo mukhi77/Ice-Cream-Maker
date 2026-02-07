@@ -458,10 +458,81 @@ static uint16_t read_adc_avg8_channel(uint8_t inch)
     return (uint16_t)(sum / 8);
 }
 
+// =======================
+// ACK FEEDBACK
+// =======================
+
+static void send_ack(uint8_t cmdId, uint8_t value)
+{
+    uart_send(0xAC);
+    uart_send(cmdId);
+    uart_send(value);
+}
 
 // =======================
 // STATE MACHINE LOGIC
 // =======================
+
+// =======================
+// RAMP MANAGER
+// =======================
+
+static uint8_t currentSpeed = 0;   // actual applied speed (0..170)
+static uint8_t targetSpeed  = 0;   // desired speed from state machine / open-loop
+
+// Tune these (units per 10Hz tick):
+// Example: rampUpStep=1 -> +10 per second, rampDownStep=2 -> -20 per second
+static uint8_t rampUpStep   = 2;
+static uint8_t rampDownStep = 2;
+
+static void setTargetSpeed(uint8_t spd)
+{
+    if (spd > 170) spd = 170;
+    targetSpeed = spd;
+}
+
+// Call once per control tick (10 Hz)
+static void ramp_update(void)
+{
+    if (currentSpeed < targetSpeed)
+    {
+        uint8_t next = (uint8_t)(currentSpeed + rampUpStep);
+        if (next < currentSpeed || next > targetSpeed) next = targetSpeed; // overflow safe
+        currentSpeed = next;
+    }
+    else if (currentSpeed > targetSpeed)
+    {
+        if (currentSpeed > rampDownStep) currentSpeed = (uint8_t)(currentSpeed - rampDownStep);
+        else currentSpeed = 0;
+
+        if (currentSpeed < targetSpeed) currentSpeed = targetSpeed;
+    }
+}
+
+// Apply the *currentSpeed* to your motor control (updates timers only on change)
+static void apply_current_speed(void)
+{
+    static uint8_t lastApplied = 255;
+
+    if (currentSpeed == lastApplied) return;
+    lastApplied = currentSpeed;
+
+    g_speedCmd = currentSpeed; // what you transmit to C#
+
+    if (currentSpeed == 0)
+    {
+        runContinuous = 0;
+        stepPeriodTicks = 0;
+        TB0CCR1 = TB0CCR2 = TB1CCR1 = TB1CCR2 = 0; // de-energize (optional)
+    }
+    else
+    {
+        stepPeriodTicks = compute_step_ccr0(currentSpeed);
+        TA0CCR0 = stepPeriodTicks;
+        runContinuous = 1;
+    }
+}
+
 
 // Consecutive Condition Counter
 static uint8_t hold_count(uint8_t cond, uint8_t *pCnt, uint8_t nTicks)
@@ -512,194 +583,73 @@ static void set_state(sm_state_t s)
 
 static void sm_update(float T_mix, float T_brine)
 {
-    uint32_t elapsedSec;
+    uint32_t elapsedSec = elapsedTicks / CTRL_HZ;
 
-
-    // --- manual STOP always wins (safety feature) ---
+    // Manual STOP wins
     if (!g_enabled)
     {
-        // If you want timer reset on stop, do it here (or in UART 'X')
-        // elapsedTicks = 0;
-
         g_state = ST_IDLE;
-        cnt_toSettle = 0;
-        cnt_toChurn = 0;
-        cnt_brineFault = 0;
-        cnt_finish = 0;
-        apply_speed(0);
+        setTargetSpeed(0);
         return;
     }
 
-    // Firmware-owned elapsed time (no serial streaming)
-    elapsedSec = elapsedTicks / CTRL_HZ;
-
-    // --- Brine fault (sustained) ---
-    // If brine is above 0C for N_FAULT ticks -> FAULT
+    // Brine fault (sustained)
     if (hold_count((T_brine > TBRINE_FAULT), &cnt_brineFault, N_FAULT))
     {
-        g_state = ST_FAULT;
+        set_state(ST_FAULT);
     }
 
-    // --- Finish gate (sustained): ONLY after >=20 min AND cold enough ---
-    // This check is placed outside the switch so it can trigger from CHURN or SETTLE.
+    // Finish gate: only after 20 min and cold enough (sustained)
     if (elapsedSec >= MIN_CYCLE_SEC)
     {
         if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_finish, N_FINISH))
         {
-            g_state = ST_FINISH;
+            set_state(ST_FINISH);
         }
     }
     else
     {
-        cnt_finish = 0; // not eligible yet
+        cnt_finish = 0;
     }
 
-    // --- State actions and CHURN <-> SETTLE cycling ---
     switch (g_state)
     {
         case ST_IDLE:
-            // If enabled, start directly in CHURN (no PRECOOL)
-            g_state = ST_CHURN;
-            cnt_toSettle = 0;
-            cnt_toChurn = 0;
-            apply_speed(SPD_CHURN);
+            // if enabled, start in CHURN
+            set_state(ST_CHURN);
+            setTargetSpeed(SPD_CHURN);
             break;
 
         case ST_CHURN:
-            apply_speed(SPD_CHURN);
+            setTargetSpeed(SPD_CHURN);
 
-            if (elapsedSec >= MIN_CYCLE_SEC)
-            {
-                if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_finish, N_FINISH))
-                    set_state(ST_FINISH);
-            }
-            else
-            {
-                cnt_finish = 0;
-            }
-
-            // Go to SETTLE if mix warms to +2C for N_STABLE ticks
+            // CHURN -> SETTLE if warm enough for N_STABLE ticks
             if (hold_count((T_mix >= TMIX_TO_SETTLE), &cnt_toSettle, N_STABLE))
             {
-                g_state = ST_SETTLE;
-                cnt_toChurn = 0;
+                set_state(ST_SETTLE);
             }
             break;
 
         case ST_SETTLE:
-            // Rest state: motor OFF
-            apply_speed(0);
+            setTargetSpeed(0);
 
-            // Return to CHURN if mix cools to -2C for N_STABLE ticks
+            // SETTLE -> CHURN if cold enough for N_STABLE ticks
             if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_toChurn, N_STABLE))
             {
-                g_state = ST_CHURN;
-                cnt_toSettle = 0;
+                set_state(ST_CHURN);
             }
             break;
 
         case ST_FINISH:
-            // End behavior: keep motor OFF (safe default).
-            // User can still hit STOP; you can also auto-stop if desired.
-            apply_speed(0);
+            setTargetSpeed(0);
             break;
 
         case ST_FAULT:
         default:
-            apply_speed(0);
+            setTargetSpeed(0);
             break;
     }
 }
-// static void sm_update(float tempC)
-// {
-//     // Elapsed time
-//     uint32_t elapsedSec = elapsedTicks / CTRL_HZ
-//     if (!g_enabled)
-//     {
-//         set_state(ST_IDLE);
-//         apply_speed(SPD_OFF);
-//         return;
-//     }
-
-//     switch (g_state)
-//     {
-//         case ST_IDLE:
-//             apply_speed(SPD_OFF);
-//             set_state(ST_PRECOOL);
-//             break;
-
-//         case ST_PRECOOL:
-//             apply_speed(SPD_PRECOOL);
-//             if (tempC <= T_PRECHURN)
-//                 SAT_INC(cnt_prechurn, 15);   // 15 ticks @10Hz = 1.5s
-//             else
-//                 cnt_prechurn = 0;
-
-//             if (cnt_prechurn >= 15)
-//             {
-//                 cnt_prechurn = 0;
-//                 set_state(ST_CHURN_RAMP);
-//             }
-//             break;
-
-//         case ST_CHURN_RAMP:
-//         {
-//             // linear ramp from PRECOOL -> CHURN over RAMP_TICKS
-//             uint16_t t = rampTicks;
-//             uint8_t spd;
-
-//             if (t >= RAMP_TICKS) t = RAMP_TICKS;
-//             spd = (uint8_t)(SPD_PRECOOL + (uint32_t)(SPD_CHURN - SPD_PRECOOL) * t / RAMP_TICKS);
-
-//             apply_speed(spd);
-
-//             if (rampTicks >= RAMP_TICKS)
-//                 set_state(ST_CHURN_CONTROL);
-
-//             rampTicks++;
-//             break;
-//         }
-
-//         case ST_CHURN_CONTROL:
-//             apply_speed(SPD_CHURN);
-
-//             // Done condition: cold enough for 3 seconds
-//             if (tempC <= T_DONE)
-//                 SAT_INC(cnt_done, 30);       // 30 ticks @10Hz = 3.0s
-//             else
-//                 cnt_done = 0;
-
-//             if (cnt_done >= 30)
-//             {
-//                 cnt_done = 0;
-//                 set_state(ST_FINISH);
-//             }
-//             // Later: add current-based anti-jam trigger here
-//             break;
-
-//         case ST_ANTI_JAM:
-//             // Placeholder until current sensing is integrated
-//             set_state(ST_CHURN_CONTROL);
-//             break;
-
-//         case ST_FINISH:
-//             apply_speed(SPD_FINISH);
-//             if (stateTicks >= 50) // 5 seconds
-//             {
-//                 g_enabled = 0;
-//                 set_state(ST_IDLE);
-//                 apply_speed(SPD_OFF);
-//             }
-//             break;
-
-//         case ST_FAULT:
-//         default:
-//             apply_speed(SPD_OFF);
-//             break;
-//     }
-
-//     stateTicks++;
-// }
 
 
 
@@ -727,8 +677,8 @@ __interrupt void USCI_A0_ISR(void)
         uint8_t ch = UCA0RXBUF;
 
         // Open/Closed Loop Control Command
-        if (ch == 'C') { g_mode = MODE_CLOSED; break; } // closed-loop
-        if (ch == 'O') { g_mode = MODE_OPEN;   break; } // open-loop
+        if (ch == 'C') { g_mode = MODE_CLOSED; send_ack(3, 0); break; }
+        if (ch == 'O') { g_mode = MODE_OPEN;   send_ack(3, 1); break; }
 
         // Start/Stop/Reset commands
         if (ch == 'S')
@@ -736,6 +686,7 @@ __interrupt void USCI_A0_ISR(void)
             g_enabled = 1;
             elapsedTicks = 0;
             set_state(ST_CHURN);
+            send_ack(1, 1);
             break;
         }
 
@@ -744,79 +695,76 @@ __interrupt void USCI_A0_ISR(void)
             g_enabled = 0;
             elapsedTicks = 0;
             set_state(ST_IDLE);
+            g_openTargetSpeed = 0;  // IMPORTANT for open-loop safety
             apply_speed(0);
+            send_ack(2, 0);
             break;
         }
-        if (ch == 'R') { if (g_state == ST_FAULT) { g_enabled = 0; set_state(ST_IDLE); } break; }
 
         // Open-loop frame: 0xFE, speed
-        if (ch == 0xFE)
-        {
-            ol_expectSpeed = 1;
-            break;
-        }
+        if (ch == 0xFE) { ol_expectSpeed = 1; break; }
 
         if (ol_expectSpeed)
         {
             ol_expectSpeed = 0;
-
-            // Only accept open-loop speed if in open-loop mode
             if (g_mode == MODE_OPEN)
             {
                 uint8_t spd = ch;
                 if (spd > 170) spd = 170;
                 g_openTargetSpeed = spd;
+                send_ack(4, spd);
             }
             break;
         }
 
+
         // OBSOLETE
-        if (rx_state == 0)
-        {
-            // Expecting direction byte
-            if (ch == 43)      // '+'
-            {
-                velocity_direction = +1;
-                rx_state = 1;
-            }
-            else if (ch == 45) // '-'
-            {
-                velocity_direction = -1;
-                rx_state = 1;
-            }
-            else
-            {
-                // Invalid → reset parser
-                rx_state = 0;
-            }
-        }
-        else if (rx_state == 1)
-        {
-            // Expecting magnitude byte (0–100)
-            velocity_magnitude = ch;
-            if (velocity_magnitude > 170)
-                velocity_magnitude = 170;
+        // if (rx_state == 0)
+        // {
+        //     // Expecting direction byte
+        //     if (ch == 43)      // '+'
+        //     {
+        //         velocity_direction = +1;
+        //         rx_state = 1;
+        //     }
+        //     else if (ch == 45) // '-'
+        //     {
+        //         velocity_direction = -1;
+        //         rx_state = 1;
+        //     }
+        //     else
+        //     {
+        //         // Invalid → reset parser
+        //         rx_state = 0;
+        //     }
+        // }
+        // else if (rx_state == 1)
+        // {
+        //     // Expecting magnitude byte (0–100)
+        //     velocity_magnitude = ch;
+        //     if (velocity_magnitude > 170)
+        //         velocity_magnitude = 170;
 
-            if (velocity_magnitude == 0)
-            {
-                // Zero → stop motor
-                runContinuous = 0;
-            }
-            else
-            {
-                // Valid speed → enable continuous motion
-                direction = velocity_direction;
+        //     if (velocity_magnitude == 0)
+        //     {
+        //         // Zero → stop motor
+        //         runContinuous = 0;
+        //     }
+        //     else
+        //     {
+        //         // Valid speed → enable continuous motion
+        //         direction = velocity_direction;
 
-                // Compute CCR0 from speed magnitude
-                stepPeriodTicks = compute_step_ccr0(velocity_magnitude);
-                TA0CCR0 = stepPeriodTicks;
+        //         // Compute CCR0 from speed magnitude
+        //         stepPeriodTicks = compute_step_ccr0(velocity_magnitude);
+        //         TA0CCR0 = stepPeriodTicks;
 
-                runContinuous = 1;
-            }
+        //         runContinuous = 1;
+        //     }
 
-            // Done with packet → back to waiting for direction
-            rx_state = 0;
-        }
+        //     // Done with packet → back to waiting for direction
+        //     rx_state = 0;
+        // }
 
         break;
     }
@@ -890,20 +838,24 @@ __interrupt void TIMER1_A0_ISR(void)
     if (g_mode == MODE_CLOSED)
     {
         sm_update(T_mix, T_brine);
+
+        // CLOSED LOOP: ramps enabled
+        ramp_update();
+        apply_current_speed();
     }
     else // MODE_OPEN
     {
-        // Keep state for reporting if you want:
-        // g_state = ST_CHURN; (or a dedicated ST_OPENLOOP if you add it)
-        if (!g_enabled || g_state == ST_FAULT)
+        if (g_state == ST_FAULT)
         {
             apply_speed(0);
         }
         else
         {
+            // OPEN LOOP: motor runs whenever setpoint > 0, no Start required
             apply_speed(g_openTargetSpeed);
         }
     }
+
 
     // 5) send status at 5 Hz
     {

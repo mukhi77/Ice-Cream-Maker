@@ -50,6 +50,15 @@ namespace software
 
             // Serial event handler
             sp.DataReceived += Sp_DataReceived;
+
+            trkSpeed.Minimum = 0;
+            trkSpeed.Maximum = 170;
+
+            ctrlTimer = new System.Windows.Forms.Timer();
+            ctrlTimer.Interval = 200; // 5 Hz retries
+            ctrlTimer.Tick += CtrlTimer_Tick;
+            ctrlTimer.Start();
+
         }
 
         // ==== CONNECT / DISCONNECT HANDLER ====
@@ -134,23 +143,89 @@ namespace software
                 double Tmix = mixX100 / 100.0;
                 double Tbr = brX100 / 100.0;
 
+                // ACK frame: [0xAC][cmdId][value]
+                while (buffer.Count >= 3 && buffer[0] == 0xAC)
+                {
+                    byte cmdId = buffer[1];
+                    byte val = buffer[2];
+                    buffer.RemoveRange(0, 3);
+
+                    HandleAck(cmdId, val);
+                }
+
+
                 BeginInvoke(new Action(() =>
                 {
                     lblTempMix.Text = $"{Tmix:F2} °C";
                     lblTempBrine.Text = $"{Tbr:F2} °C";
                     lblSpeed.Text = $"Speed: {speed}";
-                    lblState.Text = $"State: {StateName(state)}";
+                    lblState.Text = $"State: {GetUiStateName(state)}";
                 }));
 
                 double elapsedSeconds = cycleSw.Elapsed.TotalSeconds;
                 string mode = chkOpenLoop.Checked ? "OPEN" : "CLOSED";
 
                 MaybeLog(elapsedSeconds, state, speed, Tmix, Tbr, mode);
+
             }
         }
 
         private readonly System.Diagnostics.Stopwatch cycleSw = new System.Diagnostics.Stopwatch();
         private System.Windows.Forms.Timer uiTimer;
+
+        private volatile bool ackModeOpen = false;
+        private volatile bool ackModeClosed = false;
+        private volatile byte lastAckOpenSpeed = 255;
+
+        private void HandleAck(byte cmdId, byte value)
+        {
+            // 3=Mode, value: 0 closed, 1 open
+            if (cmdId == 3)
+            {
+                ackModeOpen = (value == 1);
+                ackModeClosed = (value == 0);
+                return;
+            }
+
+            // 4=OpenLoopSpeed
+            if (cmdId == 4)
+            {
+                lastAckOpenSpeed = value;
+                return;
+            }
+        }
+
+        private byte openLoopSetpoint = 0;
+        private byte lastFwSpeed = 0;      // from status packet
+        private byte lastFwState = 0;
+        private bool fwInOpenMode = false; // inferred from ACK or from checkbox+logic
+        private System.Windows.Forms.Timer ctrlTimer;
+
+        private void CtrlTimer_Tick(object sender, EventArgs e)
+        {
+            if (!sp.IsOpen) return;
+            if (!chkOpenLoop.Checked) return;
+
+            // We want firmware in open-loop mode
+            // Send 'O' once until ACK says open
+            if (!ackModeOpen)
+            {
+                sp.Write(new byte[] { (byte)'O' }, 0, 1);
+            }
+
+            // Now keep sending speed until firmware applied speed matches (within tolerance)
+            const int tol = 2; // speed units tolerance
+            int err = openLoopSetpoint - lastFwSpeed;
+
+            if (Math.Abs(err) > tol)
+            {
+                // Send frame: 0xFE + speed setpoint
+                byte[] frame = new byte[] { 0xFE, openLoopSetpoint };
+                sp.Write(frame, 0, 2);
+
+                
+            }
+        }
 
 
         //private void Sp_DataReceived(object sender, SerialDataReceivedEventArgs e)
@@ -272,6 +347,9 @@ namespace software
                 cycleSw.Stop();
                 uiTimer?.Stop();
                 lblElapsed.Text = "Time Elapsed: 0";
+                trkSpeed.Value = 0;
+                openLoopSetpoint = 0;
+                lblSpeedCmd.Text = $"Manual Setpoint: {openLoopSetpoint}";
             }
         }
 
@@ -310,27 +388,38 @@ namespace software
         {
             if (!sp.IsOpen) return;
 
-            byte cmd = chkOpenLoop.Checked ? (byte)'O' : (byte)'C';
-            sp.Write(new byte[] { cmd }, 0, 1);
+            if (chkOpenLoop.Checked)
+            {
+                openLoopSetpoint = (byte)trkSpeed.Value;   
+                ackModeOpen = false;  // force handshake
+                sp.Write(new byte[] { (byte)'O' }, 0, 1);
+                lblState.Text = "State: Open Loop";
+            }
+            else
+            {
+                ackModeClosed = false;
+                sp.Write(new byte[] { (byte)'C' }, 0, 1);
+            }
         }
 
-        private byte _lastManualSpeed = 255;
+
 
         private void trkSpeed_Scroll(object sender, EventArgs e)
         {
+            openLoopSetpoint = (byte)trkSpeed.Value;
+            lblSpeedCmd.Text = $"Manual Setpoint: {openLoopSetpoint}";
+
             if (!sp.IsOpen) return;
-            if (!chkOpenLoop.Checked) return; // only send in open-loop
+            if (!chkOpenLoop.Checked) return;
 
-            byte speed = (byte)trkSpeed.Value; // set slider max = 170
+            // Ensure firmware is in open-loop mode
+            sp.Write(new byte[] { (byte)'O' }, 0, 1);
 
-            if (speed == _lastManualSpeed) return;
-
-            byte[] frame = new byte[] { 0xFE, speed };
-            sp.Write(frame, 0, frame.Length);
-
-            lblSpeedCmd.Text = $"Manual Speed Cmd: {speed}";
-            _lastManualSpeed = speed;
+            // Send open-loop speed frame immediately
+            byte[] frame = new byte[] { 0xFE, openLoopSetpoint };
+            sp.Write(frame, 0, 2);
         }
+
 
         private void StartLogging()
         {
@@ -410,6 +499,21 @@ namespace software
             }
         }
 
-        
+        private string GetUiStateName(byte fwState)
+        {
+            if (chkOpenLoop.Checked) return "Open Loop";
+
+            // else decode firmware state
+            switch (fwState)
+            {
+                case 0: return "IDLE";
+                case 1: return "CHURN";
+                case 2: return "SETTLE";
+                case 3: return "FINISH";
+                case 4: return "FAULT";
+                default: return "UNKNOWN";
+            }
+        }
+
     }
 }
