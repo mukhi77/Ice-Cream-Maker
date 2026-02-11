@@ -162,9 +162,8 @@ namespace software
                     lblState.Text = $"State: {GetUiStateName(state)}";
                 }));
 
-                double elapsedSeconds = cycleSw.Elapsed.TotalSeconds;
+                double elapsedSeconds = loggingEnabled ? logSw.Elapsed.TotalSeconds : cycleSw.Elapsed.TotalSeconds;
                 string mode = chkOpenLoop.Checked ? "OPEN" : "CLOSED";
-
                 MaybeLog(elapsedSeconds, state, speed, Tmix, Tbr, mode);
 
             }
@@ -200,6 +199,8 @@ namespace software
         private byte lastFwState = 0;
         private bool fwInOpenMode = false; // inferred from ACK or from checkbox+logic
         private System.Windows.Forms.Timer ctrlTimer;
+        private readonly System.Diagnostics.Stopwatch logSw = new System.Diagnostics.Stopwatch();
+
 
         private void CtrlTimer_Tick(object sender, EventArgs e)
         {
@@ -331,7 +332,7 @@ namespace software
                     uiTimer.Interval = 250;
                     uiTimer.Tick += (s, e2) =>
                     {
-                        var t = cycleSw.Elapsed;
+                        var t = loggingEnabled ? logSw.Elapsed : cycleSw.Elapsed;
                         lblElapsed.Text = $"Time Elapsed: {(int)t.TotalMinutes:00}:{t.Seconds:00}";
                     };
                 }
@@ -433,20 +434,39 @@ namespace software
 
             string file = Path.Combine(folder, $"run_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
 
-            logWriter = new StreamWriter(file, append: false);
-            logWriter.AutoFlush = true;
-
-            logWriter.WriteLine("timestamp_s,elapsed_mmss,state,speed,T_mix_C,T_brine_C,dT_C,mode,reason");
+            lock (logLock)
+            {
+                logWriter = new StreamWriter(file, append: false);
+                logWriter.AutoFlush = true;
+                logWriter.WriteLine("timestamp_s,elapsed_mmss,state,speed,T_mix_C,T_brine_C,dT_C,mode,reason");
+            }
 
             loggingEnabled = true;
             lastLoggedMinute = -1;
             lastLoggedState = 255;
+
+            logSw.Reset();
+            logSw.Start();
+
+            if (uiTimer == null)
+            {
+                uiTimer = new System.Windows.Forms.Timer();
+                uiTimer.Interval = 250;
+                uiTimer.Tick += (s, e2) =>
+                {
+                    var t = loggingEnabled ? logSw.Elapsed : cycleSw.Elapsed;
+                    lblElapsed.Text = $"Time Elapsed: {(int)t.TotalMinutes:00}:{t.Seconds:00}";
+                };
+            }
+            uiTimer.Start();
+
+
         }
 
         private void StopLogging()
         {
             loggingEnabled = false;
-
+            logSw.Stop();
             lock (logLock)
             {
                 logWriter?.Flush();
