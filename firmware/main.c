@@ -7,9 +7,9 @@
 #define VREF           3.6f
 #define RS             10000.0f
 
-static const float R0     = 10000.0f; // 6759.7765f;     // ohms
-static const float T0     = 298.15f; // 309.35f;        // kelvin
-static const float BETA   = 3435.0f;  // 3510.3220f;
+static const float R0     = 6759.7765f;     // ohms
+static const float T0     = 309.35f;        // kelvin
+static const float BETA   = 3510.3220f;
 static const float KELVIN = 273.15f;
 
 
