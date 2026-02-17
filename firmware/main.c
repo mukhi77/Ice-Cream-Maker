@@ -29,6 +29,11 @@ typedef enum {
     ST_FAULT = 4
 } sm_state_t;
 
+typedef enum { DESSERT_ICECREAM = 0, DESSERT_MILKSHAKE = 1 } dessert_t;
+volatile dessert_t g_dessert = DESSERT_ICECREAM;
+
+#define ACK_CMD_DESSERT  5
+
 volatile sm_state_t g_state = ST_IDLE;
 volatile uint8_t g_enabled = 0;   // 'S' starts, 'X' stops (manual safety)
 
@@ -651,6 +656,8 @@ static void sm_update(float T_mix, float T_brine)
     }
 }
 
+static void sm_update_icecream(float T_mix, float T_brine) { sm_update(T_mix, T_brine); }
+static void sm_update_milkshake(float T_mix, float T_brine) { sm_update(T_mix, T_brine); }
 
 
 // =======================
@@ -662,6 +669,7 @@ volatile uint8_t rx_state = 0;          // 0 = waiting for direction, 1 = waitin
 volatile int8_t velocity_direction = 0; // +1 or -1
 volatile uint8_t velocity_magnitude = 0;
 static uint8_t ol_expectSpeed = 0;
+static uint8_t expectDessert = 0;
 
 
 // UART RX ISR
@@ -700,6 +708,35 @@ __interrupt void USCI_A0_ISR(void)
             send_ack(2, 0);
             break;
         }
+
+        // Dessert select: 'D' then dessertId (0/1)
+        if (ch == 'D') { expectDessert = 1; break; }
+
+        if (expectDessert)
+        {
+            expectDessert = 0;
+
+            if (ch <= 1)
+            {
+                g_dessert = (dessert_t)ch;
+
+                // When dessert changes, reset state machine safely (recommended)
+                if (g_mode == MODE_CLOSED)
+                {
+                    set_state(ST_IDLE);
+                    setTargetSpeed(0);
+                }
+
+                send_ack(ACK_CMD_DESSERT, (uint8_t)g_dessert);
+            }
+            else
+            {
+                // invalid dessert id -> ignore or clamp; I'd ignore
+                send_ack(ACK_CMD_DESSERT, (uint8_t)g_dessert);
+            }
+            break;
+        }
+
 
         // Open-loop frame: 0xFE, speed
         if (ch == 0xFE) { ol_expectSpeed = 1; break; }
@@ -837,7 +874,14 @@ __interrupt void TIMER1_A0_ISR(void)
     // 4) update state machine
     if (g_mode == MODE_CLOSED)
     {
-        sm_update(T_mix, T_brine);
+        if (g_dessert == DESSERT_ICECREAM)
+        {
+            sm_update_icecream(T_mix, T_brine);
+        }
+        else
+        {
+            sm_update_milkshake(T_mix, T_brine);
+        }
 
         // CLOSED LOOP: ramps enabled
         ramp_update();

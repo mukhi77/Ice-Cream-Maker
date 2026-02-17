@@ -29,6 +29,8 @@ namespace software
         const double T_hi = 27.0;
         const double T_lo = 23.0;
         byte directionByte = 45;
+        private byte? selectedDessert = null;  // null = not selected, 0=IceCream, 1=Milkshake
+
 
         // Logger
         private bool loggingEnabled = false;
@@ -175,10 +177,12 @@ namespace software
         private volatile bool ackModeOpen = false;
         private volatile bool ackModeClosed = false;
         private volatile byte lastAckOpenSpeed = 255;
+        private volatile bool ackDessertOk = false;
+        private volatile byte ackDessertValue = 255;
+        private byte dessertSetpoint = 0; // 0 ice cream, 1 milkshake
 
         private void HandleAck(byte cmdId, byte value)
         {
-            // 3=Mode, value: 0 closed, 1 open
             if (cmdId == 3)
             {
                 ackModeOpen = (value == 1);
@@ -186,13 +190,20 @@ namespace software
                 return;
             }
 
-            // 4=OpenLoopSpeed
             if (cmdId == 4)
             {
                 lastAckOpenSpeed = value;
                 return;
             }
+
+            if (cmdId == 5) // Dessert ACK
+            {
+                ackDessertValue = value;
+                ackDessertOk = (value == dessertSetpoint);
+                return;
+            }
         }
+
 
         private byte openLoopSetpoint = 0;
         private byte lastFwSpeed = 0;      // from status packet
@@ -204,6 +215,7 @@ namespace software
 
         private void CtrlTimer_Tick(object sender, EventArgs e)
         {
+                       
             if (!sp.IsOpen) return;
             if (!chkOpenLoop.Checked) return;
 
@@ -319,26 +331,45 @@ namespace software
 
         private void btnStart_Click(object sender, EventArgs e)
         {
-            if (sp.IsOpen)
+            if (!sp.IsOpen)
             {
-                sp.Write(new byte[] { (byte)'S' }, 0, 1);
-
-                cycleSw.Reset();
-                cycleSw.Start();
-
-                if (uiTimer == null)
-                {
-                    uiTimer = new System.Windows.Forms.Timer();
-                    uiTimer.Interval = 250;
-                    uiTimer.Tick += (s, e2) =>
-                    {
-                        var t = loggingEnabled ? logSw.Elapsed : cycleSw.Elapsed;
-                        lblElapsed.Text = $"Time Elapsed: {(int)t.TotalMinutes:00}:{t.Seconds:00}";
-                    };
-                }
-                uiTimer.Start();
+                MessageBox.Show("Please connect to the serial port first.");
+                return;
             }
+
+            // Require dessert selection
+            if (selectedDessert == null)
+            {
+                MessageBox.Show("Please select a dessert (Ice Cream or Milkshake) before starting.");
+                return;
+            }
+
+            // Force closed-loop mode UI + firmware
+            chkOpenLoop.Checked = false;
+
+            // Send dessert selection command FIRST (firmware should use this to pick state machine)
+            sp.Write(new byte[] { (byte)'D', selectedDessert.Value }, 0, 2);
+
+            // Then start closed-loop (if your firmware still expects 'S')
+            sp.Write(new byte[] { (byte)'S' }, 0, 1);
+
+            // Start UI timekeeping
+            cycleSw.Reset();
+            cycleSw.Start();
+
+            if (uiTimer == null)
+            {
+                uiTimer = new System.Windows.Forms.Timer();
+                uiTimer.Interval = 250;
+                uiTimer.Tick += (s, e2) =>
+                {
+                    var t = cycleSw.Elapsed;
+                    lblElapsed.Text = $"Time Elapsed: {(int)t.TotalMinutes:00}:{t.Seconds:00}";
+                };
+            }
+            uiTimer.Start();
         }
+
 
         private void btnStop_Click(object sender, EventArgs e)
         {
@@ -351,6 +382,9 @@ namespace software
                 trkSpeed.Value = 0;
                 openLoopSetpoint = 0;
                 lblSpeedCmd.Text = $"Manual Setpoint: {openLoopSetpoint}";
+                selectedDessert = null;
+                checkBoxIceCream.Checked = false;
+                checkBoxMilkshake.Checked = false;
             }
         }
 
@@ -448,6 +482,7 @@ namespace software
             logSw.Reset();
             logSw.Start();
 
+
             if (uiTimer == null)
             {
                 uiTimer = new System.Windows.Forms.Timer();
@@ -533,6 +568,43 @@ namespace software
                 case 4: return "FAULT";
                 default: return "UNKNOWN";
             }
+        }
+
+        private void SelectDessert(byte dessertId)
+        {
+            if (!sp.IsOpen) return;
+
+            dessertSetpoint = dessertId;
+            ackDessertOk = false;
+
+            // Force closed-loop UI state
+            chkOpenLoop.Checked = false;
+
+            // Send dessert command (this now auto-starts firmware)
+            sp.Write(new byte[] { (byte)'D', dessertSetpoint }, 0, 2);
+
+            // Start UI stopwatch immediately
+            cycleSw.Reset();
+            cycleSw.Start();
+            uiTimer?.Start();
+        }
+
+        private void checkBoxIceCream_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!checkBoxIceCream.Checked) return;
+
+            // Uncheck the other one
+            checkBoxMilkshake.Checked = false;
+            selectedDessert = 0;
+        }
+
+        private void checkBoxMilkshake_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!checkBoxMilkshake.Checked) return;
+
+            // Uncheck the other one
+            checkBoxIceCream.Checked = false;
+            selectedDessert = 1;
         }
 
     }

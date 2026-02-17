@@ -41,14 +41,16 @@
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.lblSpeedCmd = new System.Windows.Forms.Label();
             this.chkOpenLoop = new System.Windows.Forms.CheckBox();
+            this.trkSpeed = new System.Windows.Forms.TrackBar();
             this.lblTempBrine = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.btnLogging = new System.Windows.Forms.Button();
-            this.trkSpeed = new System.Windows.Forms.TrackBar();
+            this.checkBoxIceCream = new System.Windows.Forms.CheckBox();
+            this.checkBoxMilkshake = new System.Windows.Forms.CheckBox();
             this.groupBox1.SuspendLayout();
-            this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trkSpeed)).BeginInit();
+            this.groupBox2.SuspendLayout();
             this.SuspendLayout();
             // 
             // btnStop
@@ -148,7 +150,7 @@
             this.groupBox1.Controls.Add(this.lblSpeedCmd);
             this.groupBox1.Controls.Add(this.chkOpenLoop);
             this.groupBox1.Controls.Add(this.trkSpeed);
-            this.groupBox1.Location = new System.Drawing.Point(16, 168);
+            this.groupBox1.Location = new System.Drawing.Point(16, 213);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Size = new System.Drawing.Size(519, 134);
             this.groupBox1.TabIndex = 32;
@@ -175,6 +177,14 @@
             this.chkOpenLoop.UseVisualStyleBackColor = true;
             this.chkOpenLoop.CheckedChanged += new System.EventHandler(this.chkOpenLoop_CheckedChanged);
             // 
+            // trkSpeed
+            // 
+            this.trkSpeed.Location = new System.Drawing.Point(6, 53);
+            this.trkSpeed.Name = "trkSpeed";
+            this.trkSpeed.Size = new System.Drawing.Size(507, 69);
+            this.trkSpeed.TabIndex = 36;
+            this.trkSpeed.Scroll += new System.EventHandler(this.trkSpeed_Scroll);
+            // 
             // lblTempBrine
             // 
             this.lblTempBrine.AutoSize = true;
@@ -195,18 +205,20 @@
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.checkBoxMilkshake);
+            this.groupBox2.Controls.Add(this.checkBoxIceCream);
             this.groupBox2.Controls.Add(this.btnStop);
             this.groupBox2.Controls.Add(this.btnStart);
             this.groupBox2.Location = new System.Drawing.Point(16, 94);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(519, 68);
+            this.groupBox2.Size = new System.Drawing.Size(519, 113);
             this.groupBox2.TabIndex = 35;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Closed Loop";
             // 
             // btnLogging
             // 
-            this.btnLogging.Location = new System.Drawing.Point(12, 308);
+            this.btnLogging.Location = new System.Drawing.Point(12, 353);
             this.btnLogging.Name = "btnLogging";
             this.btnLogging.Size = new System.Drawing.Size(245, 31);
             this.btnLogging.TabIndex = 31;
@@ -214,13 +226,27 @@
             this.btnLogging.UseVisualStyleBackColor = true;
             this.btnLogging.Click += new System.EventHandler(this.btnLogging_Click);
             // 
-            // trkSpeed
+            // checkBoxIceCream
             // 
-            this.trkSpeed.Location = new System.Drawing.Point(6, 53);
-            this.trkSpeed.Name = "trkSpeed";
-            this.trkSpeed.Size = new System.Drawing.Size(507, 69);
-            this.trkSpeed.TabIndex = 36;
-            this.trkSpeed.Scroll += new System.EventHandler(this.trkSpeed_Scroll);
+            this.checkBoxIceCream.AutoSize = true;
+            this.checkBoxIceCream.Location = new System.Drawing.Point(10, 66);
+            this.checkBoxIceCream.Name = "checkBoxIceCream";
+            this.checkBoxIceCream.Size = new System.Drawing.Size(108, 24);
+            this.checkBoxIceCream.TabIndex = 36;
+            this.checkBoxIceCream.Text = "Ice Cream";
+            this.checkBoxIceCream.UseVisualStyleBackColor = true;
+            this.checkBoxIceCream.CheckedChanged += new System.EventHandler(this.checkBoxIceCream_CheckedChanged);
+            // 
+            // checkBoxMilkshake
+            // 
+            this.checkBoxMilkshake.AutoSize = true;
+            this.checkBoxMilkshake.Location = new System.Drawing.Point(158, 66);
+            this.checkBoxMilkshake.Name = "checkBoxMilkshake";
+            this.checkBoxMilkshake.Size = new System.Drawing.Size(105, 24);
+            this.checkBoxMilkshake.TabIndex = 37;
+            this.checkBoxMilkshake.Text = "Milkshake";
+            this.checkBoxMilkshake.UseVisualStyleBackColor = true;
+            this.checkBoxMilkshake.CheckedChanged += new System.EventHandler(this.checkBoxMilkshake_CheckedChanged);
             // 
             // Form1
             // 
@@ -244,8 +270,9 @@
             this.Text = "Form1";
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
-            this.groupBox2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.trkSpeed)).EndInit();
+            this.groupBox2.ResumeLayout(false);
+            this.groupBox2.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -271,6 +298,8 @@
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.Button btnLogging;
         private System.Windows.Forms.TrackBar trkSpeed;
+        private System.Windows.Forms.CheckBox checkBoxMilkshake;
+        private System.Windows.Forms.CheckBox checkBoxIceCream;
     }
 }
 
