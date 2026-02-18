@@ -562,10 +562,11 @@ namespace software
             switch (fwState)
             {
                 case 0: return "IDLE";
-                case 1: return "CHURN";
-                case 2: return "SETTLE";
-                case 3: return "FINISH";
-                case 4: return "FAULT";
+                case 1: return "PREMIX";
+                case 2: return "CHURN";
+                case 3: return "SETTLE";
+                case 4: return "FINISH";
+                case 5: return "FAULT";
                 default: return "UNKNOWN";
             }
         }

@@ -23,10 +23,11 @@ volatile uint8_t g_openTargetSpeed = 0;   // 0..170
 
 typedef enum {
     ST_IDLE = 0,
-    ST_CHURN = 1,
-    ST_SETTLE = 2,
-    ST_FINISH = 3,
-    ST_FAULT = 4
+    ST_PREMIX = 1,
+    ST_CHURN = 2,
+    ST_SETTLE = 3,
+    ST_FINISH = 4,
+    ST_FAULT = 5
 } sm_state_t;
 
 typedef enum { DESSERT_ICECREAM = 0, DESSERT_MILKSHAKE = 1 } dessert_t;
@@ -487,7 +488,7 @@ static uint8_t targetSpeed  = 0;   // desired speed from state machine / open-lo
 
 // Tune these (units per 10Hz tick):
 // Example: rampUpStep=1 -> +10 per second, rampDownStep=2 -> -20 per second
-static uint8_t rampUpStep   = 2;
+static uint8_t rampUpStep   = 1;
 static uint8_t rampDownStep = 2;
 
 static void setTargetSpeed(uint8_t spd)
@@ -573,8 +574,6 @@ static void apply_speed(uint8_t speed)
     }
 }
 
-// static uint16_t stateTicks = 0;     // ticks since state entered (10 Hz)
-// static uint16_t rampTicks = 0;
 
 static void set_state(sm_state_t s)
 {
@@ -656,8 +655,185 @@ static void sm_update(float T_mix, float T_brine)
     }
 }
 
-static void sm_update_icecream(float T_mix, float T_brine) { sm_update(T_mix, T_brine); }
 static void sm_update_milkshake(float T_mix, float T_brine) { sm_update(T_mix, T_brine); }
+
+// ===== Ice cream control timing =====
+#define PREMIX_SEC         120U              // 2 min
+#define PREMIX_TICKS       (PREMIX_SEC * CTRL_HZ)
+
+#define PULSE_PERIOD_SEC   120U              // every 2 min
+#define PULSE_PERIOD_TICKS (PULSE_PERIOD_SEC * CTRL_HZ)
+
+#define PULSE_ON_SEC       10U               // for 10 s
+#define PULSE_ON_TICKS     (PULSE_ON_SEC * CTRL_HZ)
+
+// ===== Ice cream temp thresholds =====
+#define T_START_CONT       (-3.0f)           // start continuous mixing at/below this
+#define T_BAND_4           (-4.0f)
+#define T_BAND_5           (-5.0f)
+#define T_DONE             (-6.0f)
+
+// ===== Hysteresis =====
+#define WARM_HOLD_SEC      10U
+#define WARM_HOLD_TICKS    (WARM_HOLD_SEC * CTRL_HZ)
+
+// ===== Fault checks (after premix only) =====
+#define TBRINE_MIN_OK      (-3.0f)
+#define DT_EPS             (0.25f)           // "Tbrine == Tmix" tolerance
+#define FAULT_HOLD_SEC     10U
+#define FAULT_HOLD_TICKS   (FAULT_HOLD_SEC * CTRL_HZ)
+
+// Speeds
+#define SPD_MED   30
+#define SPD_50    50
+#define SPD_60    60
+
+static uint16_t faultHold1 = 0;        // brine too warm hold
+static uint16_t faultHold2 = 0;        // delta too small hold
+static uint8_t  band = 0;              // 0=30@-3.., 1=50, 2=60, 3=finish
+
+static uint8_t desired_band_from_temp(float Tmix)
+{
+    if (Tmix <= T_DONE)   return 3; // finish
+    if (Tmix <= T_BAND_5) return 2; // 60
+    if (Tmix <= T_BAND_4) return 1; // 50
+    if (Tmix <= T_START_CONT) return 0; // 30 (continuous zone floor)
+    return 0; // above -3 we will not use banded continuous; pulse logic handles that
+}
+
+static uint8_t speed_from_band(uint8_t b)
+{
+    switch (b)
+    {
+        case 0: return SPD_MED; // 30
+        case 1: return SPD_50;  // 50
+        case 2: return SPD_60;  // 60
+        default: return 0;
+    }
+}
+
+static void sm_update_icecream(float Tmix, float Tbrine)
+{
+    uint32_t ticks = elapsedTicks;              // 10 Hz ticks since run
+
+    // Manual stop always wins
+    if (!g_enabled)
+    {
+        set_state(ST_IDLE);
+        setTargetSpeed(0);
+        band = 0;
+        faultHold1 = faultHold2 = 0;
+        return;
+    }
+
+    // ---------- Fault logic (NOT before 2 minutes / during premix) ----------
+    if (ticks >= PREMIX_TICKS)
+    {
+        // Condition A: brine too warm (> -3C)
+        if (Tbrine > TBRINE_MIN_OK)
+        {
+            if (faultHold1 < FAULT_HOLD_TICKS) faultHold1++;
+        }
+        else faultHold1 = 0;
+
+        // Condition B: no gradient (Tbrine ~= Tmix)
+        float dT = Tmix - Tbrine;
+        if (dT < 0) dT = -dT;
+
+        if (dT <= DT_EPS)
+        {
+            if (faultHold2 < FAULT_HOLD_TICKS) faultHold2++;
+        }
+        else faultHold2 = 0;
+
+        if (faultHold1 >= FAULT_HOLD_TICKS || faultHold2 >= FAULT_HOLD_TICKS)
+        {
+            set_state(ST_FAULT);
+            setTargetSpeed(0);
+            return;
+        }
+    }
+    else
+    {
+        // during premix, ignore fault checks
+        faultHold1 = faultHold2 = 0;
+    }
+
+    // ---------- PREMIX: 0:00–2:00 continuous @ 30 ----------
+    if (ticks < PREMIX_TICKS)
+    {
+        if (g_state != ST_PREMIX) set_state(ST_PREMIX);
+        setTargetSpeed(SPD_MED);
+        band = 0;
+        return;
+    }
+
+    // ---------- After premix ----------
+    // If we're not yet cold enough for continuous (Tmix > -3): pulse 10s every 2 min
+    if (Tmix > T_START_CONT)
+    {
+        uint32_t phase = ticks % PULSE_PERIOD_TICKS;
+
+        if (phase < PULSE_ON_TICKS)
+        {
+            set_state(ST_CHURN);      // “pulse on”
+            setTargetSpeed(SPD_MED);
+        }
+        else
+        {
+            set_state(ST_SETTLE);     // “pulse off”
+            setTargetSpeed(0);
+        }
+
+        // reset band hysteresis state while in pulse mode
+        band = 0;
+        return;
+    }
+
+    // ---------- Continuous banded mixing at/below -3 ----------
+    uint8_t desired = desired_band_from_temp(Tmix);
+
+    // Finish condition
+    if (desired == 3)
+    {
+        set_state(ST_FINISH);
+        setTargetSpeed(0);
+        return;
+    }
+
+    // BOTH-DIRECTIONS hysteresis: require desired band to persist for 10s
+    static uint8_t pendingBand = 0;
+    static uint16_t pendingHold = 0;
+
+    if (desired != band)
+    {
+        // New candidate?
+        if (desired != pendingBand)
+        {
+            pendingBand = desired;
+            pendingHold = 0;
+        }
+
+        // Hold while desired stays the same
+        if (pendingHold < WARM_HOLD_TICKS) pendingHold++;
+
+        if (pendingHold >= WARM_HOLD_TICKS)
+        {
+            band = pendingBand;     // commit change after 10s stable
+            pendingHold = 0;
+        }
+    }
+    else
+    {
+        // No change requested
+        pendingBand = band;
+        pendingHold = 0;
+    }
+
+    set_state(ST_CHURN);
+    setTargetSpeed(speed_from_band(band));
+
+}
 
 
 // =======================
