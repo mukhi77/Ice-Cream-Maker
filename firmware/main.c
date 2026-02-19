@@ -866,15 +866,15 @@ static void sm_update_icecream(float Tmix, float Tbrine)
 // =======================
 
 // Pulsing-to-continuous threshold (same as ice cream)
-#define MS_T_CONT_C         (-1.60f)
+#define MS_T_CONT_C         (1.0f)
 
 // Finish threshold (tune during testing)
-#define MS_T_FINISH_C       (-2.20f)
+#define MS_T_FINISH_C       (-1.10f)
 #define MS_FINISH_HOLD_SEC  10U
 #define MS_FINISH_HOLD_TICKS (MS_FINISH_HOLD_SEC * CTRL_HZ)
 
 // Speeds
-#define MS_SPD_PREMIX       30
+#define MS_SPD_PREMIX       50
 #define MS_SPD_CREEP        10   // keep creep to avoid freezing when not bursting
 
 // Optional: separate churnPhase codes if you want (same field g_churnPhase)
@@ -887,12 +887,10 @@ static void sm_update_icecream(float Tmix, float Tbrine)
 static uint8_t speed_from_Tmix_milkshake(float Tmix)
 {
     // As Tmix gets colder (more viscous), reduce speed to avoid stalls.
-    if (Tmix <= -2.10f) return 10;
-    if (Tmix <= -2.00f) return 15;
-    if (Tmix <= -1.90f) return 20;
-    if (Tmix <= -1.80f) return 30;
-    if (Tmix <= -1.70f) return 40;
-    if (Tmix <= -1.60f) return 50;  // entry to continuous zone
+    if (Tmix <= -0.80f) return 10;
+    if (Tmix <= 0.0f) return 20;
+    if (Tmix <= 0.50f) return 30;
+    if (Tmix <= 1.0f) return 40;  // entry to continuous zone
     return 30;                      // above cont threshold, continuous not used anyway
 }
 
@@ -1077,8 +1075,8 @@ __interrupt void USCI_A0_ISR(void)
             break;
         }
 
-        // '!' : reduce speed by 5 (more negative trim)
-        if (ch == '!')
+        // '|' : reduce speed by 5 (more negative trim)
+        if (ch == '|')
         {
             // make trim more negative (slower)
             if (g_speedTrim > TRIM_MIN)
