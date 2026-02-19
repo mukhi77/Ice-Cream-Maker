@@ -81,10 +81,10 @@ static int8_t g_speedTrim = 0;      // negative slows motor, 0 = no trim
 #define MIN_CYCLE_SEC    (20U * 60U)   // 1200 s ice cream making minimum time
 
 static uint32_t elapsedTicks = 0;      // increments only while enabled
-static uint8_t cnt_toSettle = 0;
-static uint8_t cnt_toChurn  = 0;
-static uint8_t cnt_brineFault = 0;
-static uint8_t cnt_finish = 0;
+// static uint8_t cnt_toSettle = 0;
+// static uint8_t cnt_toChurn  = 0;
+// static uint8_t cnt_brineFault = 0;
+// static uint8_t cnt_finish = 0;
 
 
 // =======================
@@ -546,19 +546,19 @@ static void apply_current_speed(void)
 }
 
 
-// Consecutive Condition Counter
-static uint8_t hold_count(uint8_t cond, uint8_t *pCnt, uint8_t nTicks)
-{
-    if (cond)
-    {
-        if (*pCnt < nTicks) (*pCnt)++;
-    }
-    else
-    {
-        *pCnt = 0;
-    }
-    return (*pCnt >= nTicks);
-}
+// // Consecutive Condition Counter
+// static uint8_t hold_count(uint8_t cond, uint8_t *pCnt, uint8_t nTicks)
+// {
+//     if (cond)
+//     {
+//         if (*pCnt < nTicks) (*pCnt)++;
+//     }
+//     else
+//     {
+//         *pCnt = 0;
+//     }
+//     return (*pCnt >= nTicks);
+// }
 
 
 static void apply_speed(uint8_t speed)
@@ -584,82 +584,82 @@ static void apply_speed(uint8_t speed)
 static void set_state(sm_state_t s)
 {
     g_state = s;
-    cnt_toSettle = 0;
-    cnt_toChurn = 0;
-    cnt_brineFault = 0;
-    cnt_finish = 0;
+    // cnt_toSettle = 0;
+    // cnt_toChurn = 0;
+    // cnt_brineFault = 0;
+    // cnt_finish = 0;
 }
 
 
-static void sm_update(float T_mix, float T_brine)
-{
-    uint32_t elapsedSec = elapsedTicks / CTRL_HZ;
+// static void sm_update(float T_mix, float T_brine)
+// {
+//     uint32_t elapsedSec = elapsedTicks / CTRL_HZ;
 
-    // Manual STOP wins
-    if (!g_enabled)
-    {
-        g_state = ST_IDLE;
-        setTargetSpeed(0);
-        return;
-    }
+//     // Manual STOP wins
+//     if (!g_enabled)
+//     {
+//         g_state = ST_IDLE;
+//         setTargetSpeed(0);
+//         return;
+//     }
 
-    // Brine fault (sustained)
-    if (hold_count((T_brine > TBRINE_FAULT), &cnt_brineFault, N_FAULT))
-    {
-        set_state(ST_FAULT);
-    }
+//     // Brine fault (sustained)
+//     if (hold_count((T_brine > TBRINE_FAULT), &cnt_brineFault, N_FAULT))
+//     {
+//         set_state(ST_FAULT);
+//     }
 
-    // Finish gate: only after 20 min and cold enough (sustained)
-    if (elapsedSec >= MIN_CYCLE_SEC)
-    {
-        if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_finish, N_FINISH))
-        {
-            set_state(ST_FINISH);
-        }
-    }
-    else
-    {
-        cnt_finish = 0;
-    }
+//     // Finish gate: only after 20 min and cold enough (sustained)
+//     if (elapsedSec >= MIN_CYCLE_SEC)
+//     {
+//         if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_finish, N_FINISH))
+//         {
+//             set_state(ST_FINISH);
+//         }
+//     }
+//     else
+//     {
+//         cnt_finish = 0;
+//     }
 
-    switch (g_state)
-    {
-        case ST_IDLE:
-            // if enabled, start in CHURN
-            set_state(ST_CHURN);
-            setTargetSpeed(SPD_CHURN);
-            break;
+//     switch (g_state)
+//     {
+//         case ST_IDLE:
+//             // if enabled, start in CHURN
+//             set_state(ST_CHURN);
+//             setTargetSpeed(SPD_CHURN);
+//             break;
 
-        case ST_CHURN:
-            setTargetSpeed(SPD_CHURN);
+//         case ST_CHURN:
+//             setTargetSpeed(SPD_CHURN);
 
-            // CHURN -> SETTLE if warm enough for N_STABLE ticks
-            if (hold_count((T_mix >= TMIX_TO_SETTLE), &cnt_toSettle, N_STABLE))
-            {
-                set_state(ST_SETTLE);
-            }
-            break;
+//             // CHURN -> SETTLE if warm enough for N_STABLE ticks
+//             if (hold_count((T_mix >= TMIX_TO_SETTLE), &cnt_toSettle, N_STABLE))
+//             {
+//                 set_state(ST_SETTLE);
+//             }
+//             break;
 
-        case ST_SETTLE:
-            setTargetSpeed(0);
+//         case ST_SETTLE:
+//             setTargetSpeed(0);
 
-            // SETTLE -> CHURN if cold enough for N_STABLE ticks
-            if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_toChurn, N_STABLE))
-            {
-                set_state(ST_CHURN);
-            }
-            break;
+//             // SETTLE -> CHURN if cold enough for N_STABLE ticks
+//             if (hold_count((T_mix <= TMIX_TO_CHURN), &cnt_toChurn, N_STABLE))
+//             {
+//                 set_state(ST_CHURN);
+//             }
+//             break;
 
-        case ST_FINISH:
-            setTargetSpeed(0);
-            break;
+//         case ST_FINISH:
+//             setTargetSpeed(0);
+//             break;
 
-        case ST_FAULT:
-        default:
-            setTargetSpeed(0);
-            break;
-    }
-}
+//         case ST_FAULT:
+//         default:
+//             setTargetSpeed(0);
+//             break;
+//     }
+// }
 
 static uint8_t apply_trim_u8(uint8_t base)
 {
@@ -669,8 +669,6 @@ static uint8_t apply_trim_u8(uint8_t base)
     return (uint8_t)s;
 }
 
-
-static void sm_update_milkshake(float T_mix, float T_brine) { sm_update(T_mix, T_brine); }
 
 // ===== Ice cream control timing =====
 
@@ -863,6 +861,171 @@ static void sm_update_icecream(float Tmix, float Tbrine)
 
 }
 
+// =======================
+// MILKSHAKE CONSTANTS
+// =======================
+
+// Pulsing-to-continuous threshold (same as ice cream)
+#define MS_T_CONT_C         (-1.60f)
+
+// Finish threshold (tune during testing)
+#define MS_T_FINISH_C       (-2.20f)
+#define MS_FINISH_HOLD_SEC  10U
+#define MS_FINISH_HOLD_TICKS (MS_FINISH_HOLD_SEC * CTRL_HZ)
+
+// Speeds
+#define MS_SPD_PREMIX       30
+#define MS_SPD_CREEP        10   // keep creep to avoid freezing when not bursting
+
+// Optional: separate churnPhase codes if you want (same field g_churnPhase)
+#define PHASE_CREEP         0
+#define PHASE_BURST         1
+#define PHASE_CONT          2
+
+// Milkshake speed mapping (start ~30 in continuous region and taper down as it gets colder)
+// This is a conservative starting point; tune with your logs.
+static uint8_t speed_from_Tmix_milkshake(float Tmix)
+{
+    // As Tmix gets colder (more viscous), reduce speed to avoid stalls.
+    if (Tmix <= -2.10f) return 10;
+    if (Tmix <= -2.00f) return 15;
+    if (Tmix <= -1.90f) return 20;
+    if (Tmix <= -1.80f) return 30;
+    if (Tmix <= -1.70f) return 40;
+    if (Tmix <= -1.60f) return 50;  // entry to continuous zone
+    return 30;                      // above cont threshold, continuous not used anyway
+}
+
+static void sm_update_milkshake(float Tmix, float Tbrine)
+{
+    static uint16_t faultHoldWarm = 0;
+    static uint16_t faultHoldDT   = 0;
+    static uint16_t finishHold    = 0;
+
+    // hysteresis for the speed map (same pattern as ice cream)
+    static uint8_t  bandSpeed     = MS_SPD_PREMIX;  // committed speed
+    static uint8_t  pendingSpeed  = MS_SPD_PREMIX;  // candidate speed
+    static uint16_t pendingHold   = 0;
+
+    uint32_t ticks = elapsedTicks;
+
+    // Manual stop
+    if (!g_enabled)
+    {
+        set_state(ST_IDLE);
+        setTargetSpeed(0);
+
+        faultHoldWarm = faultHoldDT = 0;
+        finishHold = 0;
+        bandSpeed = pendingSpeed = MS_SPD_PREMIX;
+        pendingHold = 0;
+        g_churnPhase = PHASE_CREEP;
+        return;
+    }
+
+    // ---------------- PREMIX: 0:00–2:00 continuous @ 30 ----------------
+    if (ticks < PREMIX_TICKS)
+    {
+        set_state(ST_PREMIX);
+        setTargetSpeed(MS_SPD_PREMIX);
+
+        faultHoldWarm = faultHoldDT = 0;
+        finishHold = 0;
+        bandSpeed = pendingSpeed = MS_SPD_PREMIX;
+        pendingHold = 0;
+        g_churnPhase = PHASE_CONT;
+        return;
+    }
+
+    // ---------------- Fault checks (after premix only) ----------------
+    if (Tbrine > TBRINE_TOO_WARM)
+    {
+        if (faultHoldWarm < FAULT_HOLD_TICKS) faultHoldWarm++;
+    }
+    else faultHoldWarm = 0;
+
+    float dT = Tmix - Tbrine;
+    if (dT < 0) dT = -dT;
+
+    if (dT <= DT_EPS)
+    {
+        if (faultHoldDT < FAULT_HOLD_TICKS) faultHoldDT++;
+    }
+    else faultHoldDT = 0;
+
+    if (faultHoldWarm >= FAULT_HOLD_TICKS || faultHoldDT >= FAULT_HOLD_TICKS)
+    {
+        set_state(ST_FAULT);
+        setTargetSpeed(0);
+        return;
+    }
+
+    // ---------------- Finish: Tmix <= -2.2C for 10s ----------------
+    if (Tmix <= MS_T_FINISH_C)
+    {
+        if (finishHold < MS_FINISH_HOLD_TICKS) finishHold++;
+    }
+    else finishHold = 0;
+
+    if (finishHold >= MS_FINISH_HOLD_TICKS)
+    {
+        set_state(ST_FINISH);
+        setTargetSpeed(0);
+        return;
+    }
+
+    // ---------------- Compute desired speed (then apply hysteresis) ----------------
+    uint8_t desired = speed_from_Tmix_milkshake(Tmix);
+
+    // BOTH-direction hysteresis: require desired speed to persist for BAND_HOLD_TICKS
+    if (desired != bandSpeed)
+    {
+        if (desired != pendingSpeed)
+        {
+            pendingSpeed = desired;
+            pendingHold = 0;
+        }
+
+        if (pendingHold < BAND_HOLD_TICKS) pendingHold++;
+
+        if (pendingHold >= BAND_HOLD_TICKS)
+        {
+            bandSpeed = pendingSpeed;
+            pendingHold = 0;
+        }
+    }
+    else
+    {
+        pendingSpeed = bandSpeed;
+        pendingHold = 0;
+    }
+
+    set_state(ST_CHURN);
+
+    // ---------------- Pulse above -1.6C, continuous at/below -1.6C ----------------
+    if (Tmix > MS_T_CONT_C)
+    {
+        // Pulse mode (burst/creep)
+        uint32_t phase = ticks % PULSE_PERIOD_TICKS;
+
+        if (phase < BURST_ON_TICKS)
+        {
+            g_churnPhase = PHASE_BURST;
+            setTargetSpeed(apply_trim_u8(bandSpeed));     // burst speed (trimmed)
+        }
+        else
+        {
+            g_churnPhase = PHASE_CREEP;
+            setTargetSpeed(apply_trim_u8(MS_SPD_CREEP));  // creep speed (trimmed)
+        }
+    }
+    else
+    {
+        // Continuous mode
+        g_churnPhase = PHASE_CONT;
+        setTargetSpeed(apply_trim_u8(bandSpeed));         // continuous speed (trimmed)
+    }
+}
 
 // =======================
 // INTERRUPTS
