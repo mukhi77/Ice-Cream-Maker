@@ -39,6 +39,7 @@ namespace software
         private byte lastLoggedState = 255;
 
         private readonly object logLock = new object();
+        private byte lastLoggedPhase = 255;
 
 
         public Form1()
@@ -123,13 +124,13 @@ namespace software
             sp.Read(temp, 0, n);
             buffer.AddRange(temp);
 
-            // Frame: [0xFF][mixLo][mixHi][brineLo][brineHi][speed][state]
-            while (buffer.Count >= 7)
+            // Frame: [0xFF][mixLo][mixHi][brineLo][brineHi][speed][state][phase]
+            while (buffer.Count >= 8)
             {
                 int start = buffer.IndexOf(0xFF);
                 if (start < 0) { buffer.Clear(); return; }
                 if (start > 0) buffer.RemoveRange(0, start);
-                if (buffer.Count < 7) return;
+                if (buffer.Count < 8) return;
 
                 byte mixLo = buffer[1];
                 byte mixHi = buffer[2];
@@ -137,7 +138,9 @@ namespace software
                 byte brHi = buffer[4];
                 byte speed = buffer[5];
                 byte state = buffer[6];
-                buffer.RemoveRange(0, 7);
+                byte phase = buffer[7];
+
+                buffer.RemoveRange(0, 8);
 
                 short mixX100 = (short)(mixLo | (mixHi << 8));
                 short brX100 = (short)(brLo | (brHi << 8));
@@ -162,11 +165,16 @@ namespace software
                     lblTempBrine.Text = $"{Tbr:F2} °C";
                     lblSpeed.Text = $"Speed: {speed}";
                     lblState.Text = $"State: {GetUiStateName(state)}";
+                    if (state == 2)
+                    {
+                        lblChurnPhase.Text = (phase == 1) ? "Phase: BURST" : "Phase: CREEP";
+                    }
+                    else lblChurnPhase.Text = "";
                 }));
 
                 double elapsedSeconds = loggingEnabled ? logSw.Elapsed.TotalSeconds : cycleSw.Elapsed.TotalSeconds;
                 string mode = chkOpenLoop.Checked ? "OPEN" : "CLOSED";
-                MaybeLog(elapsedSeconds, state, speed, Tmix, Tbr, mode);
+                MaybeLog(elapsedSeconds, state, speed, Tmix, Tbr, mode, phase);
 
             }
         }
@@ -240,94 +248,6 @@ namespace software
             }
         }
 
-
-        //private void Sp_DataReceived(object sender, SerialDataReceivedEventArgs e)
-        //{
-        //    int n = sp.BytesToRead;
-        //    byte[] temp = new byte[n];
-        //    sp.Read(temp, 0, n);
-        //    buffer.AddRange(temp);
-
-        //    // parse 3-byte frames: [255][MS5B][LS5B]
-        //    while (buffer.Count >= 3)
-        //    {
-        //        if (buffer[0] != 0xFF)
-        //        {
-        //            buffer.RemoveAt(0);
-        //            continue;
-        //        }
-
-        //        byte ms5 = buffer[1];
-        //        byte ls5 = buffer[2];
-        //        buffer.RemoveRange(0, 3);
-
-        //        int adc10 = ((ms5 & 0x1F) << 5) | (ls5 & 0x1F);
-        //        double t = (DateTime.Now - startTime).TotalSeconds;
-
-        //        // --- Compute temperatures ---
-        //        double tempCalibrated = CalculateTemperature(adc10, BETA);   // your MATLAB beta
-        //        double tempManual = CalculateTemperature(adc10, 3435.0);      // manual beta
-        //        double errBeta = tempManual - tempCalibrated;                 // model error (°C)
-
-        //        // --- Apply user compensation to calibrated temp ---
-        //        double adj = ApplyCompensation(tempCalibrated);
-
-        //        // Evaluate Motor Speed
-        //        EvaluateMotorControl(tempCalibrated);
-
-        //        BeginInvoke(new Action(() =>
-        //        {
-        //            lblTempNow.Text = $"{adj:F2} °C";
-
-
-        //            logWriter?.WriteLine($"{t:F3},{adc10},{tempCalibrated:F3},{adj:F3}");
-        //        }));
-        //    }
-        //}
-
-
-        // ==== Temperature calculation (Beta model) ====
-        //private double CalculateTemperature(int adc, double beta)
-        //{
-        //    if (adc <= 0) adc = 1;
-        //    if (adc >= ADC_MAX) adc = ADC_MAX - 1;
-
-        //    double v = (adc / (double)ADC_MAX) * VREF;
-        //    double Rth = RS * v / (VREF - v);
-
-        //    double invT = (1.0 / T0) + (1.0 / beta) * Math.Log(Rth / R0);
-        //    double TK = 1.0 / invT;
-        //    return TK - 273.15;
-        //}
-
-
-        //private void EvaluateMotorControl(double tempC)
-        //{
-        //    byte speed;
-
-        //    if (tempC >= T_hi)
-        //    {
-        //        speed = 10;
-        //    }
-
-        //    else if (tempC <= T_lo)
-        //    {
-        //        speed = 100;
-        //    }
-
-        //    else
-        //    {
-        //        speed = 50;
-        //    }
-
-        //    if (speed != lastSpeed) // only write when changed
-        //    {
-        //        byte[] data = new byte[] { directionByte, speed };
-        //        sp.Write(data, 0, 2);
-        //        UpdateSpeedLabel(speed);
-        //        lastSpeed = speed;
-        //    }
-        //}
 
         private void btnStart_Click(object sender, EventArgs e)
         {
@@ -472,12 +392,13 @@ namespace software
             {
                 logWriter = new StreamWriter(file, append: false);
                 logWriter.AutoFlush = true;
-                logWriter.WriteLine("timestamp_s,elapsed_mmss,state,speed,T_mix_C,T_brine_C,dT_C,mode,reason");
+                logWriter.WriteLine("timestamp_s,elapsed_mmss,state,speed,T_mix_C,T_brine_C,dT_C,mode,churn_phase,reason");
             }
 
             loggingEnabled = true;
             lastLoggedMinute = -1;
             lastLoggedState = 255;
+            lastLoggedPhase = 255;
 
             logSw.Reset();
             logSw.Start();
@@ -510,35 +431,41 @@ namespace software
             }
         }
 
-        private void MaybeLog(double elapsedSeconds, byte state, byte speed, double Tmix, double Tbrine, string mode)
+        private void MaybeLog(double elapsedSeconds, byte state, byte speed,
+                      double Tmix, double Tbrine, string mode, byte phase)
         {
             if (!loggingEnabled || logWriter == null) return;
 
             int minute = (int)(elapsedSeconds / 60.0);
-
             bool minuteChanged = minute != lastLoggedMinute;
             bool stateChanged = state != lastLoggedState;
+            bool phaseChanged = phase != lastLoggedPhase;
 
-            if (!minuteChanged && !stateChanged) return;
+            if (!minuteChanged && !stateChanged && !phaseChanged) return;
 
-            string reason = stateChanged ? "state_change" : "minute";
+            string reason =
+                stateChanged ? "state_change" :
+                phaseChanged ? "phase_change" :
+                "minute";
             double dT = Tmix - Tbrine;
 
             string elapsedMMSS = $"{minute:00}:{(int)(elapsedSeconds % 60):00}";
+            string churnPhase = (phase == 1) ? "BURST" : "CREEP";
+
             string line = string.Format(
                 System.Globalization.CultureInfo.InvariantCulture,
-                "{0:F1},{1},{2},{3},{4:F2},{5:F2},{6:F2},{7},{8}",
-                elapsedSeconds, elapsedMMSS, StateName(state), speed, Tmix, Tbrine, dT, mode, reason
+                "{0:F1},{1},{2},{3},{4:F2},{5:F2},{6:F2},{7},{8},{9}",
+                elapsedSeconds, elapsedMMSS, StateName(state), speed,
+                Tmix, Tbrine, dT, mode, churnPhase, reason
             );
 
-            lock (logLock)
-            {
-                logWriter.WriteLine(line);
-            }
+            lock (logLock) { logWriter.WriteLine(line); }
 
             if (minuteChanged) lastLoggedMinute = minute;
             if (stateChanged) lastLoggedState = state;
+            if (phaseChanged) lastLoggedPhase = phase;
         }
+
 
         private void btnLogging_Click(object sender, EventArgs e)
         {

@@ -45,9 +45,10 @@
             this.lblTempBrine = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.btnLogging = new System.Windows.Forms.Button();
-            this.checkBoxIceCream = new System.Windows.Forms.CheckBox();
             this.checkBoxMilkshake = new System.Windows.Forms.CheckBox();
+            this.checkBoxIceCream = new System.Windows.Forms.CheckBox();
+            this.btnLogging = new System.Windows.Forms.Button();
+            this.lblChurnPhase = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trkSpeed)).BeginInit();
             this.groupBox2.SuspendLayout();
@@ -57,7 +58,7 @@
             // 
             this.btnStop.Location = new System.Drawing.Point(257, 29);
             this.btnStop.Name = "btnStop";
-            this.btnStop.Size = new System.Drawing.Size(256, 31);
+            this.btnStop.Size = new System.Drawing.Size(256, 40);
             this.btnStop.TabIndex = 30;
             this.btnStop.Text = "Stop";
             this.btnStop.UseVisualStyleBackColor = true;
@@ -67,7 +68,7 @@
             // 
             this.btnStart.Location = new System.Drawing.Point(6, 29);
             this.btnStart.Name = "btnStart";
-            this.btnStart.Size = new System.Drawing.Size(245, 31);
+            this.btnStart.Size = new System.Drawing.Size(245, 40);
             this.btnStart.TabIndex = 29;
             this.btnStart.Text = "Start";
             this.btnStart.UseVisualStyleBackColor = true;
@@ -216,31 +217,10 @@
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Closed Loop";
             // 
-            // btnLogging
-            // 
-            this.btnLogging.Location = new System.Drawing.Point(12, 353);
-            this.btnLogging.Name = "btnLogging";
-            this.btnLogging.Size = new System.Drawing.Size(245, 31);
-            this.btnLogging.TabIndex = 31;
-            this.btnLogging.Text = "Start Logging";
-            this.btnLogging.UseVisualStyleBackColor = true;
-            this.btnLogging.Click += new System.EventHandler(this.btnLogging_Click);
-            // 
-            // checkBoxIceCream
-            // 
-            this.checkBoxIceCream.AutoSize = true;
-            this.checkBoxIceCream.Location = new System.Drawing.Point(10, 66);
-            this.checkBoxIceCream.Name = "checkBoxIceCream";
-            this.checkBoxIceCream.Size = new System.Drawing.Size(108, 24);
-            this.checkBoxIceCream.TabIndex = 36;
-            this.checkBoxIceCream.Text = "Ice Cream";
-            this.checkBoxIceCream.UseVisualStyleBackColor = true;
-            this.checkBoxIceCream.CheckedChanged += new System.EventHandler(this.checkBoxIceCream_CheckedChanged);
-            // 
             // checkBoxMilkshake
             // 
             this.checkBoxMilkshake.AutoSize = true;
-            this.checkBoxMilkshake.Location = new System.Drawing.Point(158, 66);
+            this.checkBoxMilkshake.Location = new System.Drawing.Point(158, 75);
             this.checkBoxMilkshake.Name = "checkBoxMilkshake";
             this.checkBoxMilkshake.Size = new System.Drawing.Size(105, 24);
             this.checkBoxMilkshake.TabIndex = 37;
@@ -248,11 +228,41 @@
             this.checkBoxMilkshake.UseVisualStyleBackColor = true;
             this.checkBoxMilkshake.CheckedChanged += new System.EventHandler(this.checkBoxMilkshake_CheckedChanged);
             // 
+            // checkBoxIceCream
+            // 
+            this.checkBoxIceCream.AutoSize = true;
+            this.checkBoxIceCream.Location = new System.Drawing.Point(10, 75);
+            this.checkBoxIceCream.Name = "checkBoxIceCream";
+            this.checkBoxIceCream.Size = new System.Drawing.Size(108, 24);
+            this.checkBoxIceCream.TabIndex = 36;
+            this.checkBoxIceCream.Text = "Ice Cream";
+            this.checkBoxIceCream.UseVisualStyleBackColor = true;
+            this.checkBoxIceCream.CheckedChanged += new System.EventHandler(this.checkBoxIceCream_CheckedChanged);
+            // 
+            // btnLogging
+            // 
+            this.btnLogging.Location = new System.Drawing.Point(12, 353);
+            this.btnLogging.Name = "btnLogging";
+            this.btnLogging.Size = new System.Drawing.Size(245, 44);
+            this.btnLogging.TabIndex = 31;
+            this.btnLogging.Text = "Start Logging";
+            this.btnLogging.UseVisualStyleBackColor = true;
+            this.btnLogging.Click += new System.EventHandler(this.btnLogging_Click);
+            // 
+            // lblChurnPhase
+            // 
+            this.lblChurnPhase.AutoSize = true;
+            this.lblChurnPhase.Location = new System.Drawing.Point(415, 71);
+            this.lblChurnPhase.Name = "lblChurnPhase";
+            this.lblChurnPhase.Size = new System.Drawing.Size(0, 20);
+            this.lblChurnPhase.TabIndex = 36;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(546, 409);
+            this.Controls.Add(this.lblChurnPhase);
             this.Controls.Add(this.btnLogging);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.lblTempBrine);
@@ -300,6 +310,7 @@
         private System.Windows.Forms.TrackBar trkSpeed;
         private System.Windows.Forms.CheckBox checkBoxMilkshake;
         private System.Windows.Forms.CheckBox checkBoxIceCream;
+        private System.Windows.Forms.Label lblChurnPhase;
     }
 }
 
