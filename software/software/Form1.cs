@@ -308,37 +308,7 @@ namespace software
             }
         }
 
-        private string StateName(byte s)
-        {
-            // Must match firmware enum ordering (given below)
-            switch (s)
-            {
-                case 0: return "IDLE";
-                case 1: return "PRECOOL";
-                case 2: return "CHURN_RAMP";
-                case 3: return "CHURNING";
-                case 4: return "ANTI_JAM";
-                case 5: return "FINISH";
-                case 6: return "FAULT";
-                default: return $"UNKNOWN({s})";
-            }
-        }
-
-        private void UpdateSpeedLabel(byte speed)
-        {
-            if (lblSpeed.InvokeRequired)
-            {
-                lblSpeed.BeginInvoke(new Action(() =>
-                {
-                    lblSpeed.Text = $"Speed: {speed}";
-                }));
-            }
-            else
-            {
-                lblSpeed.Text = $"Speed: {speed}";
-            }
-        }
-
+                
         private void chkOpenLoop_CheckedChanged(object sender, EventArgs e)
         {
             if (!sp.IsOpen) return;
@@ -455,7 +425,7 @@ namespace software
             string line = string.Format(
                 System.Globalization.CultureInfo.InvariantCulture,
                 "{0:F1},{1},{2},{3},{4:F2},{5:F2},{6:F2},{7},{8},{9}",
-                elapsedSeconds, elapsedMMSS, StateName(state), speed,
+                elapsedSeconds, elapsedMMSS, GetUiStateName(state), speed,
                 Tmix, Tbrine, dT, mode, churnPhase, reason
             );
 
