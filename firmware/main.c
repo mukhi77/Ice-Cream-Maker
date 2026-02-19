@@ -41,6 +41,12 @@ volatile uint8_t g_enabled = 0;   // 'S' starts, 'X' stops (manual safety)
 volatile uint8_t g_speedCmd = 0;     // 0..170
 volatile int16_t  g_tempC_x100 = 0;  // temperature *100 for C#
 
+// Reduce Speed by 5
+static int8_t g_speedTrim = 0;      // negative slows motor, 0 = no trim
+#define TRIM_STEP      5
+#define TRIM_MIN      (-50)         // don’t let user reduce forever
+#define TRIM_MAX       (0)          // we only allow slowing (can change later)
+
 // Temperature setpoints (C)
 #define TMIX_TO_SETTLE   2.0f
 #define TMIX_TO_CHURN   -2.0f
@@ -655,6 +661,15 @@ static void sm_update(float T_mix, float T_brine)
     }
 }
 
+static uint8_t apply_trim_u8(uint8_t base)
+{
+    int16_t s = (int16_t)base + (int16_t)g_speedTrim;
+    if (s < 0) s = 0;
+    if (s > 170) s = 170;
+    return (uint8_t)s;
+}
+
+
 static void sm_update_milkshake(float T_mix, float T_brine) { sm_update(T_mix, T_brine); }
 
 // ===== Ice cream control timing =====
@@ -674,8 +689,11 @@ static void sm_update_milkshake(float T_mix, float T_brine) { sm_update(T_mix, T
 #define BAND_HOLD_SEC       5U
 #define BAND_HOLD_TICKS     (BAND_HOLD_SEC * CTRL_HZ)
 
-// finish threshold (based on your run ending ~ -5.58C)
-#define T_FINISH_C          (-5.30f)
+// stop pulsing
+#define T_CONT_C        (-1.6f)                // below this continuous motion
+
+// finish threshold
+#define T_FINISH_C          (-5.00f)
 #define FINISH_HOLD_SEC     10U
 #define FINISH_HOLD_TICKS   (FINISH_HOLD_SEC * CTRL_HZ)
 
@@ -695,11 +713,12 @@ volatile uint8_t g_churnPhase = 0;               // 1=BURST, 0=CREEP/slow
 //  - then ramp DOWN as it gets colder / thicker to avoid stall
 static uint8_t speed_from_Tmix(float Tmix)
 {
-    if (Tmix <= -5.00f) return 10;
-    if (Tmix <= -4.70f) return 15;
-    if (Tmix <= -4.40f) return 20;
-    if (Tmix <= -4.10f) return 25;
-    if (Tmix <= -3.80f) return 30;
+    if (Tmix <= -4.70f) return 5;
+    if (Tmix <= -4.60f) return 10;
+    if (Tmix <= -4.40f) return 15;
+    if (Tmix <= -4.10f) return 20;
+    if (Tmix <= -3.90f) return 25;
+    if (Tmix <= -3.60f) return 30;
     if (Tmix <= -3.44f) return 35;
     if (Tmix <= -3.20f) return 40;
     if (Tmix <= -3.00f) return 45;
@@ -775,7 +794,7 @@ static void sm_update_icecream(float Tmix, float Tbrine)
         return;
     }
 
-    // ---------------- Finish condition: Tmix <= -5.3C for 10s ----------------
+    // ---------------- Finish condition: Tmix <= -5.0C for 10s ----------------
     if (Tmix <= T_FINISH_C)
     {
         if (finishHold < FINISH_HOLD_TICKS) finishHold++;
@@ -790,10 +809,10 @@ static void sm_update_icecream(float Tmix, float Tbrine)
     }
 
     // ---------------- Freezing phase: micro-pulse, never fully off ----------------
-    // Step 1: compute desired speed from temperature
+    // compute desired speed from temperature
     uint8_t desired = speed_from_Tmix(Tmix);
 
-    // Step 2: hysteresis BOTH directions (speed band must persist 10s)
+    // hysteresis BOTH directions (speed band must persist 10s)
     if (desired != bandSpeed)
     {
         if (desired != pendingSpeed)
@@ -816,196 +835,33 @@ static void sm_update_icecream(float Tmix, float Tbrine)
         pendingHold = 0;
     }
 
-    // Step 3: micro-pulse: burst at bandSpeed, otherwise creep (NOT 0)
-    uint32_t phase = ticks % PULSE_PERIOD_TICKS;
+    // Decide if we should pulse or go continuous
+    if (Tmix > T_CONT_C)
+    {
+        // --- Pulse behaviour (above -1.6C) ---
+        uint32_t phase = ticks % PULSE_PERIOD_TICKS;
+        set_state(ST_CHURN);
 
-    set_state(ST_CHURN);
-
-    if (phase < BURST_ON_TICKS) {
-        g_churnPhase = 1;
-        setTargetSpeed(bandSpeed);
-    } else {
-        g_churnPhase = 0;
-        setTargetSpeed(SPD_CREEP);
+        if (phase < BURST_ON_TICKS)
+        {
+            g_churnPhase = 1; // BURST
+            setTargetSpeed(apply_trim_u8(bandSpeed));
+        }
+        else
+        {
+            g_churnPhase = 0; // CREEP
+            setTargetSpeed(apply_trim_u8(SPD_CREEP));
+        }
     }
+    else
+    {
+        // --- Continuous behaviour (at/below -1.6C) ---
+        g_churnPhase = 2; // optional: 2 = CONTINUOUS (lets you log/see it)
+        set_state(ST_CHURN);
+        setTargetSpeed(apply_trim_u8(bandSpeed));
+    }
+
 }
-
-// #define PREMIX_SEC         120U              // 2 min
-// #define PREMIX_TICKS       (PREMIX_SEC * CTRL_HZ)
-
-// #define PULSE_PERIOD_SEC   120U              // every 2 min
-// #define PULSE_PERIOD_TICKS (PULSE_PERIOD_SEC * CTRL_HZ)
-
-// #define PULSE_ON_SEC       10U               // for 10 s
-// #define PULSE_ON_TICKS     (PULSE_ON_SEC * CTRL_HZ)
-
-// // ===== Ice cream temp thresholds =====
-// #define T_START_CONT       (-3.0f)           // start continuous mixing at/below this
-// #define T_BAND_4           (-4.0f)
-// #define T_BAND_5           (-5.0f)
-// #define T_DONE             (-6.0f)
-
-// // ===== Hysteresis =====
-// #define WARM_HOLD_SEC      10U
-// #define WARM_HOLD_TICKS    (WARM_HOLD_SEC * CTRL_HZ)
-
-// // ===== Fault checks (after premix only) =====
-// #define TBRINE_MIN_OK      (-3.0f)
-// #define DT_EPS             (0.25f)           // "Tbrine == Tmix" tolerance
-// #define FAULT_HOLD_SEC     10U
-// #define FAULT_HOLD_TICKS   (FAULT_HOLD_SEC * CTRL_HZ)
-
-// // Speeds
-// #define SPD_MED   30
-// #define SPD_50    50
-// #define SPD_60    60
-
-// static uint16_t faultHold1 = 0;        // brine too warm hold
-// static uint16_t faultHold2 = 0;        // delta too small hold
-// static uint8_t  band = 0;              // 0=30@-3.., 1=50, 2=60, 3=finish
-
-// static uint8_t desired_band_from_temp(float Tmix)
-// {
-//     if (Tmix <= T_DONE)   return 3; // finish
-//     if (Tmix <= T_BAND_5) return 2; // 60
-//     if (Tmix <= T_BAND_4) return 1; // 50
-//     if (Tmix <= T_START_CONT) return 0; // 30 (continuous zone floor)
-//     return 0; // above -3 we will not use banded continuous; pulse logic handles that
-// }
-
-// static uint8_t speed_from_band(uint8_t b)
-// {
-//     switch (b)
-//     {
-//         case 0: return SPD_MED; // 30
-//         case 1: return SPD_50;  // 50
-//         case 2: return SPD_60;  // 60
-//         default: return 0;
-//     }
-// }
-
-// static void sm_update_icecream(float Tmix, float Tbrine)
-// {
-//     uint32_t ticks = elapsedTicks;              // 10 Hz ticks since run
-
-//     // Manual stop always wins
-//     if (!g_enabled)
-//     {
-//         set_state(ST_IDLE);
-//         setTargetSpeed(0);
-//         band = 0;
-//         faultHold1 = faultHold2 = 0;
-//         return;
-//     }
-
-//     // ---------- Fault logic (NOT before 2 minutes / during premix) ----------
-//     if (ticks >= PREMIX_TICKS)
-//     {
-//         // Condition A: brine too warm (> -3C)
-//         if (Tbrine > TBRINE_MIN_OK)
-//         {
-//             if (faultHold1 < FAULT_HOLD_TICKS) faultHold1++;
-//         }
-//         else faultHold1 = 0;
-
-//         // Condition B: no gradient (Tbrine ~= Tmix)
-//         float dT = Tmix - Tbrine;
-//         if (dT < 0) dT = -dT;
-
-//         if (dT <= DT_EPS)
-//         {
-//             if (faultHold2 < FAULT_HOLD_TICKS) faultHold2++;
-//         }
-//         else faultHold2 = 0;
-
-//         if (faultHold1 >= FAULT_HOLD_TICKS || faultHold2 >= FAULT_HOLD_TICKS)
-//         {
-//             set_state(ST_FAULT);
-//             setTargetSpeed(0);
-//             return;
-//         }
-//     }
-//     else
-//     {
-//         // during premix, ignore fault checks
-//         faultHold1 = faultHold2 = 0;
-//     }
-
-//     // ---------- PREMIX: 0:00–2:00 continuous @ 30 ----------
-//     if (ticks < PREMIX_TICKS)
-//     {
-//         if (g_state != ST_PREMIX) set_state(ST_PREMIX);
-//         setTargetSpeed(SPD_MED);
-//         band = 0;
-//         return;
-//     }
-
-//     // ---------- After premix ----------
-//     // If we're not yet cold enough for continuous (Tmix > -3): pulse 10s every 2 min
-//     if (Tmix > T_START_CONT)
-//     {
-//         uint32_t phase = ticks % PULSE_PERIOD_TICKS;
-
-//         if (phase < PULSE_ON_TICKS)
-//         {
-//             set_state(ST_CHURN);      // “pulse on”
-//             setTargetSpeed(SPD_MED);
-//         }
-//         else
-//         {
-//             set_state(ST_SETTLE);     // “pulse off”
-//             setTargetSpeed(0);
-//         }
-
-//         // reset band hysteresis state while in pulse mode
-//         band = 0;
-//         return;
-//     }
-
-//     // ---------- Continuous banded mixing at/below -3 ----------
-//     uint8_t desired = desired_band_from_temp(Tmix);
-
-//     // Finish condition
-//     if (desired == 3)
-//     {
-//         set_state(ST_FINISH);
-//         setTargetSpeed(0);
-//         return;
-//     }
-
-//     // BOTH-DIRECTIONS hysteresis: require desired band to persist for 10s
-//     static uint8_t pendingBand = 0;
-//     static uint16_t pendingHold = 0;
-
-//     if (desired != band)
-//     {
-//         // New candidate?
-//         if (desired != pendingBand)
-//         {
-//             pendingBand = desired;
-//             pendingHold = 0;
-//         }
-
-//         // Hold while desired stays the same
-//         if (pendingHold < WARM_HOLD_TICKS) pendingHold++;
-
-//         if (pendingHold >= WARM_HOLD_TICKS)
-//         {
-//             band = pendingBand;     // commit change after 10s stable
-//             pendingHold = 0;
-//         }
-//     }
-//     else
-//     {
-//         // No change requested
-//         pendingBand = band;
-//         pendingHold = 0;
-//     }
-
-//     set_state(ST_CHURN);
-//     setTargetSpeed(speed_from_band(band));
-
-// }
 
 
 // =======================
@@ -1052,10 +908,31 @@ __interrupt void USCI_A0_ISR(void)
             elapsedTicks = 0;
             set_state(ST_IDLE);
             g_openTargetSpeed = 0;  // IMPORTANT for open-loop safety
+            g_speedTrim = 0;
             apply_speed(0);
             send_ack(2, 0);
             break;
         }
+
+        // '!' : reduce speed by 5 (more negative trim)
+        if (ch == '!')
+        {
+            // make trim more negative (slower)
+            if (g_speedTrim > TRIM_MIN)
+            {
+                g_speedTrim -= TRIM_STEP;
+                if (g_speedTrim < TRIM_MIN) g_speedTrim = TRIM_MIN;
+            }
+            break;
+        }
+
+        // 'Z' : reset trim to 0
+        if (ch == 'Z')
+        {
+            g_speedTrim = 0;
+            break;
+        }
+
 
         // Dessert select: 'D' then dessertId (0/1)
         if (ch == 'D') { expectDessert = 1; break; }
@@ -1102,55 +979,7 @@ __interrupt void USCI_A0_ISR(void)
             break;
         }
 
-
-        // OBSOLETE
-        // if (rx_state == 0)
-        // {
-        //     // Expecting direction byte
-        //     if (ch == 43)      // '+'
-        //     {
-        //         velocity_direction = +1;
-        //         rx_state = 1;
-        //     }
-        //     else if (ch == 45) // '-'
-        //     {
-        //         velocity_direction = -1;
-        //         rx_state = 1;
-        //     }
-        //     else
-        //     {
-        //         // Invalid → reset parser
-        //         rx_state = 0;
-        //     }
-        // }
-        // else if (rx_state == 1)
-        // {
-        //     // Expecting magnitude byte (0–100)
-        //     velocity_magnitude = ch;
-        //     if (velocity_magnitude > 170)
-        //         velocity_magnitude = 170;
-
-        //     if (velocity_magnitude == 0)
-        //     {
-        //         // Zero → stop motor
-        //         runContinuous = 0;
-        //     }
-        //     else
-        //     {
-        //         // Valid speed → enable continuous motion
-        //         direction = velocity_direction;
-
-        //         // Compute CCR0 from speed magnitude
-        //         stepPeriodTicks = compute_step_ccr0(velocity_magnitude);
-        //         TA0CCR0 = stepPeriodTicks;
-
-        //         runContinuous = 1;
-        //     }
-
-        //     // Done with packet → back to waiting for direction
-        //     rx_state = 0;
-        // }
-
+        
         break;
     }
     case 4: break;                  // Vector 4 - TXIFG (unused)
@@ -1239,7 +1068,7 @@ __interrupt void TIMER1_A0_ISR(void)
             targetSpeed  = 0;
 
             // apply immediately (no ramp_update)
-            apply_current_speed();
+            apply_speed(0);
         }
         else
         {
@@ -1288,51 +1117,4 @@ __interrupt void TIMER1_A0_ISR(void)
     }
 }
 
-
-// #pragma vector = TIMER1_A0_VECTOR
-// __interrupt void TIMER1_A0_ISR(void)
-// {
-//     // 1) sample ADC
-//     ADC10CTL0 |= ADC10SC;
-//     while (ADC10CTL1 & ADC10BUSY);
-//     uint16_t adc = ADC10MEM0;
-
-//     // 2) compute temperature
-//     float tempC = adc_to_tempC(adc);
-//     g_tempC_x100 = (int16_t)(tempC * 100.0f);
-
-//     // 3) decide speed (firmware owns this now)
-//     uint8_t speed = decide_speed_from_temp(tempC);
-//     g_speedCmd = speed;
-
-//     // 4) apply to motor (reuse your existing speed->CCR0 logic)
-//     if (speed == 0)
-//     {
-//         runContinuous = 0;
-//         stepPeriodTicks = 0;
-//     }
-//     else
-//     {
-//         stepPeriodTicks = compute_step_ccr0(speed);
-//         TA0CCR0 = stepPeriodTicks;
-//         runContinuous = 1;
-//         // direction can be fixed or set by last user command
-//         // direction = +1;
-//     }
-
-//     // 5) optional: send status at low rate (e.g., 5 Hz if ISR is 100 Hz)
-//     static uint8_t decim = 0;
-//     decim++;
-//     if (g_sendStatus && decim >= 20) // 100Hz/20 = 5Hz
-//     {
-//         decim = 0;
-//         uart_send(0xFF);
-//         uart_send((uint8_t)(g_tempC_x100 & 0xFF));        // low byte
-//         uart_send((uint8_t)((g_tempC_x100 >> 8) & 0xFF)); // high byte
-//         uart_send(g_speedCmd);
-//         uart_send(g_state);
-//     }
-
-//     if (!g_enabled) { runContinuous = 0; g_speedCmd = 0; /* optionally return; */ }
-// }
 
