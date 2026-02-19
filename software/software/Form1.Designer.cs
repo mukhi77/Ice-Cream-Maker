@@ -49,6 +49,8 @@
             this.checkBoxIceCream = new System.Windows.Forms.CheckBox();
             this.btnLogging = new System.Windows.Forms.Button();
             this.lblChurnPhase = new System.Windows.Forms.Label();
+            this.buttonReduceSpeed = new System.Windows.Forms.Button();
+            this.buttonClearReducedSpeed = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trkSpeed)).BeginInit();
             this.groupBox2.SuspendLayout();
@@ -252,16 +254,38 @@
             // lblChurnPhase
             // 
             this.lblChurnPhase.AutoSize = true;
-            this.lblChurnPhase.Location = new System.Drawing.Point(415, 71);
+            this.lblChurnPhase.Location = new System.Drawing.Point(420, 71);
             this.lblChurnPhase.Name = "lblChurnPhase";
             this.lblChurnPhase.Size = new System.Drawing.Size(0, 20);
             this.lblChurnPhase.TabIndex = 36;
+            // 
+            // buttonReduceSpeed
+            // 
+            this.buttonReduceSpeed.Location = new System.Drawing.Point(263, 353);
+            this.buttonReduceSpeed.Name = "buttonReduceSpeed";
+            this.buttonReduceSpeed.Size = new System.Drawing.Size(173, 44);
+            this.buttonReduceSpeed.TabIndex = 38;
+            this.buttonReduceSpeed.Text = "Reduce Speed (-5)";
+            this.buttonReduceSpeed.UseVisualStyleBackColor = true;
+            this.buttonReduceSpeed.Click += new System.EventHandler(this.buttonReduceSpeed_Click);
+            // 
+            // buttonClearReducedSpeed
+            // 
+            this.buttonClearReducedSpeed.Location = new System.Drawing.Point(442, 353);
+            this.buttonClearReducedSpeed.Name = "buttonClearReducedSpeed";
+            this.buttonClearReducedSpeed.Size = new System.Drawing.Size(92, 44);
+            this.buttonClearReducedSpeed.TabIndex = 39;
+            this.buttonClearReducedSpeed.Text = "Clear";
+            this.buttonClearReducedSpeed.UseVisualStyleBackColor = true;
+            this.buttonClearReducedSpeed.Click += new System.EventHandler(this.buttonClearReducedSpeed_Click);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(546, 409);
+            this.Controls.Add(this.buttonClearReducedSpeed);
+            this.Controls.Add(this.buttonReduceSpeed);
             this.Controls.Add(this.lblChurnPhase);
             this.Controls.Add(this.btnLogging);
             this.Controls.Add(this.groupBox2);
@@ -311,6 +335,8 @@
         private System.Windows.Forms.CheckBox checkBoxMilkshake;
         private System.Windows.Forms.CheckBox checkBoxIceCream;
         private System.Windows.Forms.Label lblChurnPhase;
+        private System.Windows.Forms.Button buttonReduceSpeed;
+        private System.Windows.Forms.Button buttonClearReducedSpeed;
     }
 }
 

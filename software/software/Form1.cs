@@ -467,26 +467,7 @@ namespace software
                 default: return "UNKNOWN";
             }
         }
-
-        private void SelectDessert(byte dessertId)
-        {
-            if (!sp.IsOpen) return;
-
-            dessertSetpoint = dessertId;
-            ackDessertOk = false;
-
-            // Force closed-loop UI state
-            chkOpenLoop.Checked = false;
-
-            // Send dessert command (this now auto-starts firmware)
-            sp.Write(new byte[] { (byte)'D', dessertSetpoint }, 0, 2);
-
-            // Start UI stopwatch immediately
-            cycleSw.Reset();
-            cycleSw.Start();
-            uiTimer?.Start();
-        }
-
+                
         private void checkBoxIceCream_CheckedChanged(object sender, EventArgs e)
         {
             if (!checkBoxIceCream.Checked) return;
@@ -505,5 +486,20 @@ namespace software
             selectedDessert = 1;
         }
 
+        private void buttonReduceSpeed_Click(object sender, EventArgs e)
+        {
+            if (sp.IsOpen)
+            {
+                sp.Write(new byte[] { (byte)'|' }, 0, 1);
+            }
+        }
+
+        private void buttonClearReducedSpeed_Click(object sender, EventArgs e)
+        {
+            if (sp.IsOpen)
+            {
+                sp.Write(new byte[] { (byte)'Z' }, 0, 1);
+            }
+        }
     }
 }
