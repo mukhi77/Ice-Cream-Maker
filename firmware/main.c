@@ -753,6 +753,13 @@ static void sm_update_icecream(float Tmix, float Tbrine)
         return;
     }
 
+    // LATCH FINISH: once finished, stay finished until STOP or a new START resets things
+    if (g_state == ST_FINISH)
+    {
+        setTargetSpeed(0);
+        return;
+    }
+
     // ---------------- PREMIX: 0:00–2:00 continuous @ 30 ----------------
     if (ticks < PREMIX_TICKS)
     {
@@ -874,7 +881,7 @@ static void sm_update_icecream(float Tmix, float Tbrine)
 #define MS_FINISH_HOLD_TICKS (MS_FINISH_HOLD_SEC * CTRL_HZ)
 
 // Speeds
-#define MS_SPD_PREMIX       50
+#define MS_SPD_PREMIX       40
 #define MS_SPD_CREEP        10   // keep creep to avoid freezing when not bursting
 
 // Optional: separate churnPhase codes if you want (same field g_churnPhase)
@@ -918,6 +925,13 @@ static void sm_update_milkshake(float Tmix, float Tbrine)
         bandSpeed = pendingSpeed = MS_SPD_PREMIX;
         pendingHold = 0;
         g_churnPhase = PHASE_CREEP;
+        return;
+    }
+
+    // LATCH FINISH: once finished, stay finished until STOP or a new START resets things
+    if (g_state == ST_FINISH)
+    {
+        setTargetSpeed(0);
         return;
     }
 
@@ -1065,12 +1079,17 @@ __interrupt void USCI_A0_ISR(void)
 
         if (ch == 'X')
         {
-            g_enabled = 0;
+            g_enabled = 0; 
+            
+            // kill ramp state
+            currentSpeed = 0;
+            targetSpeed  = 0;           
+            apply_speed(0);
+
             elapsedTicks = 0;
             set_state(ST_IDLE);
             g_openTargetSpeed = 0;  // IMPORTANT for open-loop safety
             g_speedTrim = 0;
-            apply_speed(0);
             send_ack(2, 0);
             break;
         }
