@@ -42,6 +42,10 @@ namespace software
         private byte lastLoggedPhase = 255;
 
 
+        // User manual
+        private int pageNumber = 1;
+        private UserControl[] allPages;
+
         public Form1()
         {
             InitializeComponent();
@@ -54,14 +58,27 @@ namespace software
             // Serial event handler
             sp.DataReceived += Sp_DataReceived;
 
-            trkSpeed.Minimum = 0;
-            trkSpeed.Maximum = 170;
+            // trkSpeed.Minimum = 0;
+            // trkSpeed.Maximum = 170;
 
             ctrlTimer = new System.Windows.Forms.Timer();
             ctrlTimer.Interval = 200; // 5 Hz retries
             ctrlTimer.Tick += CtrlTimer_Tick;
             ctrlTimer.Start();
 
+            // Load User Manual pages
+            allPages = new UserControl[]
+            {
+                new UC1components(),
+                new UC2welcome(),
+                new UC3vanilla(),
+                new UC4chocomilk(),
+                new UC5instruct(),
+                new UC6tips(),
+            };
+
+            // Load the first page immediately
+            showNewPage(allPages[pageNumber - 1]);
         }
 
         // ==== CONNECT / DISCONNECT HANDLER ====
@@ -173,7 +190,8 @@ namespace software
                 }));
 
                 double elapsedSeconds = loggingEnabled ? logSw.Elapsed.TotalSeconds : cycleSw.Elapsed.TotalSeconds;
-                string mode = chkOpenLoop.Checked ? "OPEN" : "CLOSED";
+                // string mode = chkOpenLoop.Checked ? "OPEN" : "CLOSED";
+                string mode = "CLOSED";
                 MaybeLog(elapsedSeconds, state, speed, Tmix, Tbr, mode, phase);
 
             }
@@ -225,7 +243,7 @@ namespace software
         {
                        
             if (!sp.IsOpen) return;
-            if (!chkOpenLoop.Checked) return;
+            // if (!chkOpenLoop.Checked) return;
 
             // We want firmware in open-loop mode
             // Send 'O' once until ACK says open
@@ -243,8 +261,6 @@ namespace software
                 // Send frame: 0xFE + speed setpoint
                 byte[] frame = new byte[] { 0xFE, openLoopSetpoint };
                 sp.Write(frame, 0, 2);
-
-                
             }
         }
 
@@ -265,7 +281,7 @@ namespace software
             }
 
             // Force closed-loop mode UI + firmware
-            chkOpenLoop.Checked = false;
+            // chkOpenLoop.Checked = false;
 
             // Send dessert selection command FIRST (firmware should use this to pick state machine)
             sp.Write(new byte[] { (byte)'D', selectedDessert.Value }, 0, 2);
@@ -299,107 +315,105 @@ namespace software
                 cycleSw.Stop();
                 uiTimer?.Stop();
                 lblElapsed.Text = "Time Elapsed: 0";
-                trkSpeed.Value = 0;
+                //trkSpeed.Value = 0;
                 openLoopSetpoint = 0;
-                lblSpeedCmd.Text = $"Manual Setpoint: {openLoopSetpoint}";
+                //lblSpeedCmd.Text = $"Manual Setpoint: {openLoopSetpoint}";
                 selectedDessert = null;
                 checkBoxIceCream.Checked = false;
                 checkBoxMilkshake.Checked = false;
             }
         }
 
-                
-        private void chkOpenLoop_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!sp.IsOpen) return;
 
-            if (chkOpenLoop.Checked)
-            {
-                openLoopSetpoint = (byte)trkSpeed.Value;   
-                ackModeOpen = false;  // force handshake
-                sp.Write(new byte[] { (byte)'O' }, 0, 1);
-                lblState.Text = "State: Open Loop";
-            }
-            else
-            {
-                ackModeClosed = false;
-                sp.Write(new byte[] { (byte)'C' }, 0, 1);
-            }
-        }
+        //private void chkOpenLoop_CheckedChanged(object sender, EventArgs e)
+        //{
+        //    if (!sp.IsOpen) return;
 
-
-
-        private void trkSpeed_Scroll(object sender, EventArgs e)
-        {
-            openLoopSetpoint = (byte)trkSpeed.Value;
-            lblSpeedCmd.Text = $"Manual Setpoint: {openLoopSetpoint}";
-
-            if (!sp.IsOpen) return;
-            if (!chkOpenLoop.Checked) return;
-
-            // Ensure firmware is in open-loop mode
-            sp.Write(new byte[] { (byte)'O' }, 0, 1);
-
-            // Send open-loop speed frame immediately
-            byte[] frame = new byte[] { 0xFE, openLoopSetpoint };
-            sp.Write(frame, 0, 2);
-        }
+        //    if (chkOpenLoop.Checked)
+        //    {
+        //        openLoopSetpoint = (byte)trkSpeed.Value;   
+        //        ackModeOpen = false;  // force handshake
+        //        sp.Write(new byte[] { (byte)'O' }, 0, 1);
+        //        lblState.Text = "State: Open Loop";
+        //    }
+        //    else
+        //    {
+        //        ackModeClosed = false;
+        //        sp.Write(new byte[] { (byte)'C' }, 0, 1);
+        //    }
+        //}
 
 
-        private void StartLogging()
-        {
-            if (loggingEnabled) return;
+        //private void trkSpeed_Scroll(object sender, EventArgs e)
+        //{
+        //    openLoopSetpoint = (byte)trkSpeed.Value;
+        //    lblSpeedCmd.Text = $"Manual Setpoint: {openLoopSetpoint}";
 
-            string folder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                "MECH423_Logs"
-            );
-            Directory.CreateDirectory(folder);
+        //    if (!sp.IsOpen) return;
+        //    if (!chkOpenLoop.Checked) return;
 
-            string file = Path.Combine(folder, $"run_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+        //    // Ensure firmware is in open-loop mode
+        //    sp.Write(new byte[] { (byte)'O' }, 0, 1);
 
-            lock (logLock)
-            {
-                logWriter = new StreamWriter(file, append: false);
-                logWriter.AutoFlush = true;
-                logWriter.WriteLine("timestamp_s,elapsed_mmss,state,speed,T_mix_C,T_brine_C,dT_C,mode,churn_phase,reason");
-            }
+        //    // Send open-loop speed frame immediately
+        //    byte[] frame = new byte[] { 0xFE, openLoopSetpoint };
+        //    sp.Write(frame, 0, 2);
+        //}
 
-            loggingEnabled = true;
-            lastLoggedMinute = -1;
-            lastLoggedState = 255;
-            lastLoggedPhase = 255;
+        //private void StartLogging()
+        //{
+        //    if (loggingEnabled) return;
 
-            logSw.Reset();
-            logSw.Start();
+        //    string folder = Path.Combine(
+        //        Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+        //        "MECH423_Logs"
+        //    );
+        //    Directory.CreateDirectory(folder);
+
+        //    string file = Path.Combine(folder, $"run_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+
+        //    lock (logLock)
+        //    {
+        //        logWriter = new StreamWriter(file, append: false);
+        //        logWriter.AutoFlush = true;
+        //        logWriter.WriteLine("timestamp_s,elapsed_mmss,state,speed,T_mix_C,T_brine_C,dT_C,mode,churn_phase,reason");
+        //    }
+
+        //    loggingEnabled = true;
+        //    lastLoggedMinute = -1;
+        //    lastLoggedState = 255;
+        //    lastLoggedPhase = 255;
+
+        //    logSw.Reset();
+        //    logSw.Start();
 
 
-            if (uiTimer == null)
-            {
-                uiTimer = new System.Windows.Forms.Timer();
-                uiTimer.Interval = 250;
-                uiTimer.Tick += (s, e2) =>
-                {
-                    var t = loggingEnabled ? logSw.Elapsed : cycleSw.Elapsed;
-                    lblElapsed.Text = $"Time Elapsed: {(int)t.TotalMinutes:00}:{t.Seconds:00}";
-                };
-            }
-            uiTimer.Start();
+        //    if (uiTimer == null)
+        //    {
+        //        uiTimer = new System.Windows.Forms.Timer();
+        //        uiTimer.Interval = 250;
+        //        uiTimer.Tick += (s, e2) =>
+        //        {
+        //            var t = loggingEnabled ? logSw.Elapsed : cycleSw.Elapsed;
+        //            lblElapsed.Text = $"Time Elapsed: {(int)t.TotalMinutes:00}:{t.Seconds:00}";
+        //        };
+        //    }
+        //    uiTimer.Start();
 
 
-        }
+        //}
 
-        private void StopLogging()
-        {
-            loggingEnabled = false;
-            logSw.Stop();
-            lock (logLock)
-            {
-                logWriter?.Flush();
-                logWriter?.Dispose();
-                logWriter = null;
-            }
-        }
+        //private void StopLogging()
+        //{
+        //    loggingEnabled = false;
+        //    logSw.Stop();
+        //    lock (logLock)
+        //    {
+        //        logWriter?.Flush();
+        //        logWriter?.Dispose();
+        //        logWriter = null;
+        //    }
+        //}
 
         private void MaybeLog(double elapsedSeconds, byte state, byte speed,
                       double Tmix, double Tbrine, string mode, byte phase)
@@ -437,23 +451,23 @@ namespace software
         }
 
 
-        private void btnLogging_Click(object sender, EventArgs e)
-        {
-            if (!loggingEnabled)
-            {
-                StartLogging();
-                btnLogging.Text = "Stop Logging";
-            }
-            else
-            {
-                StopLogging();
-                btnLogging.Text = "Start Logging";
-            }
-        }
+        //private void btnLogging_Click(object sender, EventArgs e)
+        //{
+        //    if (!loggingEnabled)
+        //    {
+        //        StartLogging();
+        //        btnLogging.Text = "Stop Logging";
+        //    }
+        //    else
+        //    {
+        //        StopLogging();
+        //        btnLogging.Text = "Start Logging";
+        //    }
+        //}
 
         private string GetUiStateName(byte fwState)
         {
-            if (chkOpenLoop.Checked) return "Open Loop";
+            // if (chkOpenLoop.Checked) return "Open Loop";
 
             // else decode firmware state
             switch (fwState)
@@ -500,6 +514,44 @@ namespace software
             {
                 sp.Write(new byte[] { (byte)'Z' }, 0, 1);
             }
+        }
+        private void showNewPage(UserControl newPage)
+        {
+            panelUM.Controls.Clear(); // Remove the old page
+            newPage.Dock = DockStyle.Fill; // Make it fit the panel perfectly
+            panelUM.Controls.Add(newPage); // Show the new page
+
+            labelPageNum.Text = pageNumber.ToString();
+
+            if (pageNumber == allPages.Length)
+            {
+                buttonNext.Enabled = false;
+            }
+            else
+            {
+                buttonNext.Enabled = true;
+            }
+
+            if (pageNumber < 2)
+            {
+                buttonBack.Enabled = false;
+            }
+            else
+            {
+                buttonBack.Enabled = true;
+            }
+        }
+
+        private void buttonNext_MouseClick(object sender, MouseEventArgs e)
+        {
+            pageNumber++;
+            showNewPage(allPages[pageNumber - 1]);
+        }
+
+        private void buttonBack_MouseClick(object sender, MouseEventArgs e)
+        {
+            pageNumber--;
+            showNewPage(allPages[pageNumber - 1]);
         }
     }
 }

@@ -28,8 +28,21 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.lblChurnPhase = new System.Windows.Forms.Label();
+            this.tabControl1 = new System.Windows.Forms.TabControl();
+            this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.label8 = new System.Windows.Forms.Label();
+            this.label7 = new System.Windows.Forms.Label();
+            this.label5 = new System.Windows.Forms.Label();
+            this.checkBoxMilkshake = new System.Windows.Forms.CheckBox();
+            this.buttonClearReducedSpeed = new System.Windows.Forms.Button();
+            this.checkBoxIceCream = new System.Windows.Forms.CheckBox();
+            this.buttonReduceSpeed = new System.Windows.Forms.Button();
             this.btnStop = new System.Windows.Forms.Button();
             this.btnStart = new System.Windows.Forms.Button();
+            this.lblTempBrine = new System.Windows.Forms.Label();
+            this.label3 = new System.Windows.Forms.Label();
+            this.lblElapsed = new System.Windows.Forms.Label();
             this.lblState = new System.Windows.Forms.Label();
             this.lblSpeed = new System.Windows.Forms.Label();
             this.lblTempMix = new System.Windows.Forms.Label();
@@ -37,285 +50,391 @@
             this.btnConnect = new System.Windows.Forms.Button();
             this.cboPorts = new System.Windows.Forms.ComboBox();
             this.label1 = new System.Windows.Forms.Label();
-            this.lblElapsed = new System.Windows.Forms.Label();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.lblSpeedCmd = new System.Windows.Forms.Label();
-            this.chkOpenLoop = new System.Windows.Forms.CheckBox();
-            this.trkSpeed = new System.Windows.Forms.TrackBar();
-            this.lblTempBrine = new System.Windows.Forms.Label();
-            this.label3 = new System.Windows.Forms.Label();
-            this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.checkBoxMilkshake = new System.Windows.Forms.CheckBox();
-            this.checkBoxIceCream = new System.Windows.Forms.CheckBox();
-            this.btnLogging = new System.Windows.Forms.Button();
-            this.lblChurnPhase = new System.Windows.Forms.Label();
-            this.buttonReduceSpeed = new System.Windows.Forms.Button();
-            this.buttonClearReducedSpeed = new System.Windows.Forms.Button();
-            this.groupBox1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.trkSpeed)).BeginInit();
-            this.groupBox2.SuspendLayout();
+            this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.label6 = new System.Windows.Forms.Label();
+            this.labelPageNum = new System.Windows.Forms.Label();
+            this.label4 = new System.Windows.Forms.Label();
+            this.buttonBack = new System.Windows.Forms.Button();
+            this.buttonNext = new System.Windows.Forms.Button();
+            this.label2 = new System.Windows.Forms.Label();
+            this.panelUM = new System.Windows.Forms.Panel();
+            this.tabControl1.SuspendLayout();
+            this.tabPage1.SuspendLayout();
+            this.tabPage2.SuspendLayout();
             this.SuspendLayout();
+            // 
+            // lblChurnPhase
+            // 
+            this.lblChurnPhase.AutoSize = true;
+            this.lblChurnPhase.Location = new System.Drawing.Point(560, 89);
+            this.lblChurnPhase.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lblChurnPhase.Name = "lblChurnPhase";
+            this.lblChurnPhase.Size = new System.Drawing.Size(0, 25);
+            this.lblChurnPhase.TabIndex = 36;
+            // 
+            // tabControl1
+            // 
+            this.tabControl1.Controls.Add(this.tabPage1);
+            this.tabControl1.Controls.Add(this.tabPage2);
+            this.tabControl1.Font = new System.Drawing.Font("Candara", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.tabControl1.Location = new System.Drawing.Point(0, 2);
+            this.tabControl1.Name = "tabControl1";
+            this.tabControl1.SelectedIndex = 0;
+            this.tabControl1.Size = new System.Drawing.Size(759, 593);
+            this.tabControl1.TabIndex = 40;
+            // 
+            // tabPage1
+            // 
+            this.tabPage1.BackColor = System.Drawing.Color.MistyRose;
+            this.tabPage1.Controls.Add(this.label8);
+            this.tabPage1.Controls.Add(this.label7);
+            this.tabPage1.Controls.Add(this.label5);
+            this.tabPage1.Controls.Add(this.checkBoxMilkshake);
+            this.tabPage1.Controls.Add(this.buttonClearReducedSpeed);
+            this.tabPage1.Controls.Add(this.checkBoxIceCream);
+            this.tabPage1.Controls.Add(this.buttonReduceSpeed);
+            this.tabPage1.Controls.Add(this.btnStop);
+            this.tabPage1.Controls.Add(this.btnStart);
+            this.tabPage1.Controls.Add(this.lblTempBrine);
+            this.tabPage1.Controls.Add(this.label3);
+            this.tabPage1.Controls.Add(this.lblElapsed);
+            this.tabPage1.Controls.Add(this.lblState);
+            this.tabPage1.Controls.Add(this.lblSpeed);
+            this.tabPage1.Controls.Add(this.lblTempMix);
+            this.tabPage1.Controls.Add(this.label9);
+            this.tabPage1.Controls.Add(this.btnConnect);
+            this.tabPage1.Controls.Add(this.cboPorts);
+            this.tabPage1.Controls.Add(this.label1);
+            this.tabPage1.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
+            this.tabPage1.Location = new System.Drawing.Point(8, 43);
+            this.tabPage1.Name = "tabPage1";
+            this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage1.Size = new System.Drawing.Size(743, 542);
+            this.tabPage1.TabIndex = 0;
+            this.tabPage1.Text = "Control";
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Font = new System.Drawing.Font("Candara", 10.125F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label8.Location = new System.Drawing.Point(8, 396);
+            this.label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(132, 33);
+            this.label8.TabIndex = 55;
+            this.label8.Text = "Feedback:";
+            // 
+            // label7
+            // 
+            this.label7.Font = new System.Drawing.Font("Candara", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label7.Location = new System.Drawing.Point(5, 17);
+            this.label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(730, 41);
+            this.label7.TabIndex = 54;
+            this.label7.Text = "Dessert Machine 42.3";
+            this.label7.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Font = new System.Drawing.Font("Candara", 10.125F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label5.Location = new System.Drawing.Point(8, 137);
+            this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(223, 33);
+            this.label5.TabIndex = 53;
+            this.label5.Text = "Dessert Selection:";
+            // 
+            // checkBoxMilkshake
+            // 
+            this.checkBoxMilkshake.AutoSize = true;
+            this.checkBoxMilkshake.Location = new System.Drawing.Point(23, 226);
+            this.checkBoxMilkshake.Margin = new System.Windows.Forms.Padding(4);
+            this.checkBoxMilkshake.Name = "checkBoxMilkshake";
+            this.checkBoxMilkshake.Size = new System.Drawing.Size(147, 33);
+            this.checkBoxMilkshake.TabIndex = 37;
+            this.checkBoxMilkshake.Text = "Milkshake";
+            this.checkBoxMilkshake.UseVisualStyleBackColor = true;
+            // 
+            // buttonClearReducedSpeed
+            // 
+            this.buttonClearReducedSpeed.BackColor = System.Drawing.Color.LightPink;
+            this.buttonClearReducedSpeed.Location = new System.Drawing.Point(612, 302);
+            this.buttonClearReducedSpeed.Margin = new System.Windows.Forms.Padding(4);
+            this.buttonClearReducedSpeed.Name = "buttonClearReducedSpeed";
+            this.buttonClearReducedSpeed.Size = new System.Drawing.Size(123, 69);
+            this.buttonClearReducedSpeed.TabIndex = 52;
+            this.buttonClearReducedSpeed.Text = "Clear";
+            this.buttonClearReducedSpeed.UseVisualStyleBackColor = false;
+            // 
+            // checkBoxIceCream
+            // 
+            this.checkBoxIceCream.AutoSize = true;
+            this.checkBoxIceCream.BackColor = System.Drawing.Color.MistyRose;
+            this.checkBoxIceCream.Location = new System.Drawing.Point(23, 185);
+            this.checkBoxIceCream.Margin = new System.Windows.Forms.Padding(4);
+            this.checkBoxIceCream.Name = "checkBoxIceCream";
+            this.checkBoxIceCream.Size = new System.Drawing.Size(146, 33);
+            this.checkBoxIceCream.TabIndex = 36;
+            this.checkBoxIceCream.Text = "Ice Cream";
+            this.checkBoxIceCream.UseVisualStyleBackColor = false;
+            // 
+            // buttonReduceSpeed
+            // 
+            this.buttonReduceSpeed.BackColor = System.Drawing.Color.LightPink;
+            this.buttonReduceSpeed.Location = new System.Drawing.Point(379, 302);
+            this.buttonReduceSpeed.Margin = new System.Windows.Forms.Padding(4);
+            this.buttonReduceSpeed.Name = "buttonReduceSpeed";
+            this.buttonReduceSpeed.Size = new System.Drawing.Size(225, 69);
+            this.buttonReduceSpeed.TabIndex = 51;
+            this.buttonReduceSpeed.Text = "Reduce Speed";
+            this.buttonReduceSpeed.UseVisualStyleBackColor = false;
             // 
             // btnStop
             // 
-            this.btnStop.Location = new System.Drawing.Point(257, 29);
+            this.btnStop.BackColor = System.Drawing.Color.LightCoral;
+            this.btnStop.Font = new System.Drawing.Font("Candara", 10.125F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnStop.ForeColor = System.Drawing.SystemColors.ControlLightLight;
+            this.btnStop.Location = new System.Drawing.Point(5, 302);
+            this.btnStop.Margin = new System.Windows.Forms.Padding(4);
             this.btnStop.Name = "btnStop";
-            this.btnStop.Size = new System.Drawing.Size(256, 40);
+            this.btnStop.Size = new System.Drawing.Size(366, 69);
             this.btnStop.TabIndex = 30;
-            this.btnStop.Text = "Stop";
-            this.btnStop.UseVisualStyleBackColor = true;
-            this.btnStop.Click += new System.EventHandler(this.btnStop_Click);
+            this.btnStop.Text = "STOP";
+            this.btnStop.UseVisualStyleBackColor = false;
             // 
             // btnStart
             // 
-            this.btnStart.Location = new System.Drawing.Point(6, 29);
+            this.btnStart.BackColor = System.Drawing.Color.Plum;
+            this.btnStart.Font = new System.Drawing.Font("Candara", 10.875F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnStart.Location = new System.Drawing.Point(269, 171);
+            this.btnStart.Margin = new System.Windows.Forms.Padding(4);
             this.btnStart.Name = "btnStart";
-            this.btnStart.Size = new System.Drawing.Size(245, 40);
+            this.btnStart.Size = new System.Drawing.Size(466, 113);
             this.btnStart.TabIndex = 29;
-            this.btnStart.Text = "Start";
-            this.btnStart.UseVisualStyleBackColor = true;
-            this.btnStart.Click += new System.EventHandler(this.btnStart_Click);
-            // 
-            // lblState
-            // 
-            this.lblState.AutoSize = true;
-            this.lblState.Location = new System.Drawing.Point(364, 42);
-            this.lblState.Name = "lblState";
-            this.lblState.Size = new System.Drawing.Size(65, 20);
-            this.lblState.TabIndex = 28;
-            this.lblState.Text = "State: 0";
-            // 
-            // lblSpeed
-            // 
-            this.lblSpeed.AutoSize = true;
-            this.lblSpeed.Location = new System.Drawing.Point(275, 42);
-            this.lblSpeed.Name = "lblSpeed";
-            this.lblSpeed.Size = new System.Drawing.Size(73, 20);
-            this.lblSpeed.TabIndex = 27;
-            this.lblSpeed.Text = "Speed: 0";
-            // 
-            // lblTempMix
-            // 
-            this.lblTempMix.AutoSize = true;
-            this.lblTempMix.Location = new System.Drawing.Point(208, 42);
-            this.lblTempMix.Name = "lblTempMix";
-            this.lblTempMix.Size = new System.Drawing.Size(40, 20);
-            this.lblTempMix.TabIndex = 23;
-            this.lblTempMix.Text = "36.5";
-            // 
-            // label9
-            // 
-            this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(12, 42);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(189, 20);
-            this.label9.TabIndex = 22;
-            this.label9.Text = "Mixture Temperature (°C):";
-            // 
-            // btnConnect
-            // 
-            this.btnConnect.Location = new System.Drawing.Point(244, 4);
-            this.btnConnect.Name = "btnConnect";
-            this.btnConnect.Size = new System.Drawing.Size(290, 31);
-            this.btnConnect.TabIndex = 26;
-            this.btnConnect.Text = "Connect Serial";
-            this.btnConnect.UseVisualStyleBackColor = true;
-            this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
-            // 
-            // cboPorts
-            // 
-            this.cboPorts.FormattingEnabled = true;
-            this.cboPorts.Location = new System.Drawing.Point(104, 2);
-            this.cboPorts.Name = "cboPorts";
-            this.cboPorts.Size = new System.Drawing.Size(121, 28);
-            this.cboPorts.TabIndex = 25;
-            // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(12, 9);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(86, 20);
-            this.label1.TabIndex = 24;
-            this.label1.Text = "Serial Port:";
-            // 
-            // lblElapsed
-            // 
-            this.lblElapsed.AutoSize = true;
-            this.lblElapsed.Location = new System.Drawing.Point(12, 71);
-            this.lblElapsed.Name = "lblElapsed";
-            this.lblElapsed.Size = new System.Drawing.Size(122, 20);
-            this.lblElapsed.TabIndex = 31;
-            this.lblElapsed.Text = "Time Elapsed: 0";
-            // 
-            // groupBox1
-            // 
-            this.groupBox1.Controls.Add(this.lblSpeedCmd);
-            this.groupBox1.Controls.Add(this.chkOpenLoop);
-            this.groupBox1.Controls.Add(this.trkSpeed);
-            this.groupBox1.Location = new System.Drawing.Point(16, 213);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(519, 134);
-            this.groupBox1.TabIndex = 32;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "Open Loop";
-            // 
-            // lblSpeedCmd
-            // 
-            this.lblSpeedCmd.AutoSize = true;
-            this.lblSpeedCmd.Location = new System.Drawing.Point(6, 102);
-            this.lblSpeedCmd.Name = "lblSpeedCmd";
-            this.lblSpeedCmd.Size = new System.Drawing.Size(166, 20);
-            this.lblSpeedCmd.TabIndex = 2;
-            this.lblSpeedCmd.Text = "Manual Speed Cmd: 0";
-            // 
-            // chkOpenLoop
-            // 
-            this.chkOpenLoop.AutoSize = true;
-            this.chkOpenLoop.Location = new System.Drawing.Point(6, 25);
-            this.chkOpenLoop.Name = "chkOpenLoop";
-            this.chkOpenLoop.Size = new System.Drawing.Size(123, 24);
-            this.chkOpenLoop.TabIndex = 0;
-            this.chkOpenLoop.Text = "Open Loop?";
-            this.chkOpenLoop.UseVisualStyleBackColor = true;
-            this.chkOpenLoop.CheckedChanged += new System.EventHandler(this.chkOpenLoop_CheckedChanged);
-            // 
-            // trkSpeed
-            // 
-            this.trkSpeed.Location = new System.Drawing.Point(6, 53);
-            this.trkSpeed.Name = "trkSpeed";
-            this.trkSpeed.Size = new System.Drawing.Size(507, 69);
-            this.trkSpeed.TabIndex = 36;
-            this.trkSpeed.Scroll += new System.EventHandler(this.trkSpeed_Scroll);
+            this.btnStart.Text = "START";
+            this.btnStart.UseVisualStyleBackColor = false;
             // 
             // lblTempBrine
             // 
             this.lblTempBrine.AutoSize = true;
-            this.lblTempBrine.Location = new System.Drawing.Point(351, 71);
+            this.lblTempBrine.Location = new System.Drawing.Point(315, 479);
+            this.lblTempBrine.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.lblTempBrine.Name = "lblTempBrine";
-            this.lblTempBrine.Size = new System.Drawing.Size(40, 20);
-            this.lblTempBrine.TabIndex = 34;
+            this.lblTempBrine.Size = new System.Drawing.Size(56, 29);
+            this.lblTempBrine.TabIndex = 49;
             this.lblTempBrine.Text = "36.5";
             // 
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(170, 71);
+            this.label3.Location = new System.Drawing.Point(31, 479);
+            this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(175, 20);
-            this.label3.TabIndex = 33;
+            this.label3.Size = new System.Drawing.Size(249, 29);
+            this.label3.TabIndex = 48;
             this.label3.Text = "Brine Temperature (°C):";
             // 
-            // groupBox2
+            // lblElapsed
             // 
-            this.groupBox2.Controls.Add(this.checkBoxMilkshake);
-            this.groupBox2.Controls.Add(this.checkBoxIceCream);
-            this.groupBox2.Controls.Add(this.btnStop);
-            this.groupBox2.Controls.Add(this.btnStart);
-            this.groupBox2.Location = new System.Drawing.Point(16, 94);
-            this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(519, 113);
-            this.groupBox2.TabIndex = 35;
-            this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "Closed Loop";
+            this.lblElapsed.AutoSize = true;
+            this.lblElapsed.Location = new System.Drawing.Point(430, 405);
+            this.lblElapsed.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lblElapsed.Name = "lblElapsed";
+            this.lblElapsed.Size = new System.Drawing.Size(170, 29);
+            this.lblElapsed.TabIndex = 47;
+            this.lblElapsed.Text = "Time Elapsed: 0";
             // 
-            // checkBoxMilkshake
+            // lblState
             // 
-            this.checkBoxMilkshake.AutoSize = true;
-            this.checkBoxMilkshake.Location = new System.Drawing.Point(158, 75);
-            this.checkBoxMilkshake.Name = "checkBoxMilkshake";
-            this.checkBoxMilkshake.Size = new System.Drawing.Size(105, 24);
-            this.checkBoxMilkshake.TabIndex = 37;
-            this.checkBoxMilkshake.Text = "Milkshake";
-            this.checkBoxMilkshake.UseVisualStyleBackColor = true;
-            this.checkBoxMilkshake.CheckedChanged += new System.EventHandler(this.checkBoxMilkshake_CheckedChanged);
+            this.lblState.AutoSize = true;
+            this.lblState.Location = new System.Drawing.Point(430, 479);
+            this.lblState.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lblState.Name = "lblState";
+            this.lblState.Size = new System.Drawing.Size(91, 29);
+            this.lblState.TabIndex = 46;
+            this.lblState.Text = "State: 0";
             // 
-            // checkBoxIceCream
+            // lblSpeed
             // 
-            this.checkBoxIceCream.AutoSize = true;
-            this.checkBoxIceCream.Location = new System.Drawing.Point(10, 75);
-            this.checkBoxIceCream.Name = "checkBoxIceCream";
-            this.checkBoxIceCream.Size = new System.Drawing.Size(108, 24);
-            this.checkBoxIceCream.TabIndex = 36;
-            this.checkBoxIceCream.Text = "Ice Cream";
-            this.checkBoxIceCream.UseVisualStyleBackColor = true;
-            this.checkBoxIceCream.CheckedChanged += new System.EventHandler(this.checkBoxIceCream_CheckedChanged);
+            this.lblSpeed.AutoSize = true;
+            this.lblSpeed.Location = new System.Drawing.Point(430, 442);
+            this.lblSpeed.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lblSpeed.Name = "lblSpeed";
+            this.lblSpeed.Size = new System.Drawing.Size(99, 29);
+            this.lblSpeed.TabIndex = 45;
+            this.lblSpeed.Text = "Speed: 0";
             // 
-            // btnLogging
+            // lblTempMix
             // 
-            this.btnLogging.Location = new System.Drawing.Point(12, 353);
-            this.btnLogging.Name = "btnLogging";
-            this.btnLogging.Size = new System.Drawing.Size(245, 44);
-            this.btnLogging.TabIndex = 31;
-            this.btnLogging.Text = "Start Logging";
-            this.btnLogging.UseVisualStyleBackColor = true;
-            this.btnLogging.Click += new System.EventHandler(this.btnLogging_Click);
+            this.lblTempMix.AutoSize = true;
+            this.lblTempMix.Location = new System.Drawing.Point(315, 442);
+            this.lblTempMix.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.lblTempMix.Name = "lblTempMix";
+            this.lblTempMix.Size = new System.Drawing.Size(56, 29);
+            this.lblTempMix.TabIndex = 41;
+            this.lblTempMix.Text = "36.5";
             // 
-            // lblChurnPhase
+            // label9
             // 
-            this.lblChurnPhase.AutoSize = true;
-            this.lblChurnPhase.Location = new System.Drawing.Point(420, 71);
-            this.lblChurnPhase.Name = "lblChurnPhase";
-            this.lblChurnPhase.Size = new System.Drawing.Size(0, 20);
-            this.lblChurnPhase.TabIndex = 36;
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(31, 442);
+            this.label9.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(273, 29);
+            this.label9.TabIndex = 40;
+            this.label9.Text = "Dessert Temperature (°C):";
             // 
-            // buttonReduceSpeed
+            // btnConnect
             // 
-            this.buttonReduceSpeed.Location = new System.Drawing.Point(263, 353);
-            this.buttonReduceSpeed.Name = "buttonReduceSpeed";
-            this.buttonReduceSpeed.Size = new System.Drawing.Size(173, 44);
-            this.buttonReduceSpeed.TabIndex = 38;
-            this.buttonReduceSpeed.Text = "Reduce Speed (-5)";
-            this.buttonReduceSpeed.UseVisualStyleBackColor = true;
-            this.buttonReduceSpeed.Click += new System.EventHandler(this.buttonReduceSpeed_Click);
+            this.btnConnect.BackColor = System.Drawing.Color.LightPink;
+            this.btnConnect.Location = new System.Drawing.Point(348, 74);
+            this.btnConnect.Margin = new System.Windows.Forms.Padding(4);
+            this.btnConnect.Name = "btnConnect";
+            this.btnConnect.Size = new System.Drawing.Size(387, 51);
+            this.btnConnect.TabIndex = 44;
+            this.btnConnect.Text = "Connect Serial";
+            this.btnConnect.UseVisualStyleBackColor = false;
             // 
-            // buttonClearReducedSpeed
+            // cboPorts
             // 
-            this.buttonClearReducedSpeed.Location = new System.Drawing.Point(442, 353);
-            this.buttonClearReducedSpeed.Name = "buttonClearReducedSpeed";
-            this.buttonClearReducedSpeed.Size = new System.Drawing.Size(92, 44);
-            this.buttonClearReducedSpeed.TabIndex = 39;
-            this.buttonClearReducedSpeed.Text = "Clear";
-            this.buttonClearReducedSpeed.UseVisualStyleBackColor = true;
-            this.buttonClearReducedSpeed.Click += new System.EventHandler(this.buttonClearReducedSpeed_Click);
+            this.cboPorts.BackColor = System.Drawing.Color.LavenderBlush;
+            this.cboPorts.FormattingEnabled = true;
+            this.cboPorts.Location = new System.Drawing.Point(140, 76);
+            this.cboPorts.Margin = new System.Windows.Forms.Padding(4);
+            this.cboPorts.Name = "cboPorts";
+            this.cboPorts.Size = new System.Drawing.Size(200, 37);
+            this.cboPorts.TabIndex = 43;
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(8, 79);
+            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(124, 29);
+            this.label1.TabIndex = 42;
+            this.label1.Text = "Serial Port:";
+            // 
+            // tabPage2
+            // 
+            this.tabPage2.BackColor = System.Drawing.Color.Snow;
+            this.tabPage2.Controls.Add(this.label6);
+            this.tabPage2.Controls.Add(this.labelPageNum);
+            this.tabPage2.Controls.Add(this.label4);
+            this.tabPage2.Controls.Add(this.buttonBack);
+            this.tabPage2.Controls.Add(this.buttonNext);
+            this.tabPage2.Controls.Add(this.label2);
+            this.tabPage2.Controls.Add(this.panelUM);
+            this.tabPage2.Location = new System.Drawing.Point(8, 43);
+            this.tabPage2.Name = "tabPage2";
+            this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage2.Size = new System.Drawing.Size(743, 542);
+            this.tabPage2.TabIndex = 1;
+            this.tabPage2.Text = "User Manual";
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(79, 506);
+            this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(52, 29);
+            this.label6.TabIndex = 46;
+            this.label6.Text = "of 6";
+            // 
+            // labelPageNum
+            // 
+            this.labelPageNum.AutoSize = true;
+            this.labelPageNum.Location = new System.Drawing.Point(60, 506);
+            this.labelPageNum.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelPageNum.Name = "labelPageNum";
+            this.labelPageNum.Size = new System.Drawing.Size(26, 29);
+            this.labelPageNum.TabIndex = 45;
+            this.labelPageNum.Text = "6";
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(5, 506);
+            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(63, 29);
+            this.label4.TabIndex = 43;
+            this.label4.Text = "Page";
+            // 
+            // buttonBack
+            // 
+            this.buttonBack.BackColor = System.Drawing.Color.LightPink;
+            this.buttonBack.Location = new System.Drawing.Point(376, 495);
+            this.buttonBack.Name = "buttonBack";
+            this.buttonBack.Size = new System.Drawing.Size(178, 47);
+            this.buttonBack.TabIndex = 44;
+            this.buttonBack.Text = "Back";
+            this.buttonBack.UseVisualStyleBackColor = false;
+            this.buttonBack.MouseClick += new System.Windows.Forms.MouseEventHandler(this.buttonBack_MouseClick);
+            // 
+            // buttonNext
+            // 
+            this.buttonNext.BackColor = System.Drawing.Color.LightPink;
+            this.buttonNext.Location = new System.Drawing.Point(560, 495);
+            this.buttonNext.Name = "buttonNext";
+            this.buttonNext.Size = new System.Drawing.Size(178, 47);
+            this.buttonNext.TabIndex = 0;
+            this.buttonNext.Text = "Next";
+            this.buttonNext.UseVisualStyleBackColor = false;
+            this.buttonNext.MouseClick += new System.Windows.Forms.MouseEventHandler(this.buttonNext_MouseClick);
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(4, 3);
+            this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(0, 29);
+            this.label2.TabIndex = 43;
+            // 
+            // panelUM
+            // 
+            this.panelUM.Location = new System.Drawing.Point(0, 0);
+            this.panelUM.Name = "panelUM";
+            this.panelUM.Size = new System.Drawing.Size(743, 491);
+            this.panelUM.TabIndex = 0;
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(12F, 25F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(546, 409);
-            this.Controls.Add(this.buttonClearReducedSpeed);
-            this.Controls.Add(this.buttonReduceSpeed);
+            this.ClientSize = new System.Drawing.Size(758, 596);
+            this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.lblChurnPhase);
-            this.Controls.Add(this.btnLogging);
-            this.Controls.Add(this.groupBox2);
-            this.Controls.Add(this.lblTempBrine);
-            this.Controls.Add(this.label3);
-            this.Controls.Add(this.groupBox1);
-            this.Controls.Add(this.lblElapsed);
-            this.Controls.Add(this.lblState);
-            this.Controls.Add(this.lblSpeed);
-            this.Controls.Add(this.lblTempMix);
-            this.Controls.Add(this.label9);
-            this.Controls.Add(this.btnConnect);
-            this.Controls.Add(this.cboPorts);
-            this.Controls.Add(this.label1);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "Form1";
             this.Text = "Form1";
-            this.groupBox1.ResumeLayout(false);
-            this.groupBox1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.trkSpeed)).EndInit();
-            this.groupBox2.ResumeLayout(false);
-            this.groupBox2.PerformLayout();
+            this.tabControl1.ResumeLayout(false);
+            this.tabPage1.ResumeLayout(false);
+            this.tabPage1.PerformLayout();
+            this.tabPage2.ResumeLayout(false);
+            this.tabPage2.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
         }
 
         #endregion
-
+        private System.Windows.Forms.Label lblChurnPhase;
+        private System.Windows.Forms.TabControl tabControl1;
+        private System.Windows.Forms.TabPage tabPage1;
+        private System.Windows.Forms.Button buttonClearReducedSpeed;
+        private System.Windows.Forms.Button buttonReduceSpeed;
+        private System.Windows.Forms.CheckBox checkBoxMilkshake;
+        private System.Windows.Forms.CheckBox checkBoxIceCream;
         private System.Windows.Forms.Button btnStop;
         private System.Windows.Forms.Button btnStart;
+        private System.Windows.Forms.Label lblTempBrine;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.Label lblElapsed;
         private System.Windows.Forms.Label lblState;
         private System.Windows.Forms.Label lblSpeed;
         private System.Windows.Forms.Label lblTempMix;
@@ -323,20 +442,17 @@
         private System.Windows.Forms.Button btnConnect;
         private System.Windows.Forms.ComboBox cboPorts;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Label lblElapsed;
-        private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.CheckBox chkOpenLoop;
-        private System.Windows.Forms.Label lblSpeedCmd;
-        private System.Windows.Forms.Label lblTempBrine;
-        private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.Button btnLogging;
-        private System.Windows.Forms.TrackBar trkSpeed;
-        private System.Windows.Forms.CheckBox checkBoxMilkshake;
-        private System.Windows.Forms.CheckBox checkBoxIceCream;
-        private System.Windows.Forms.Label lblChurnPhase;
-        private System.Windows.Forms.Button buttonReduceSpeed;
-        private System.Windows.Forms.Button buttonClearReducedSpeed;
+        private System.Windows.Forms.TabPage tabPage2;
+        private System.Windows.Forms.Panel panelUM;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Button buttonBack;
+        private System.Windows.Forms.Button buttonNext;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.Label labelPageNum;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.Label label7;
+        private System.Windows.Forms.Label label8;
     }
 }
 
