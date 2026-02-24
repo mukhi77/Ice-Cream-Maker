@@ -61,10 +61,10 @@ namespace software
             // trkSpeed.Minimum = 0;
             // trkSpeed.Maximum = 170;
 
-            ctrlTimer = new System.Windows.Forms.Timer();
-            ctrlTimer.Interval = 200; // 5 Hz retries
-            ctrlTimer.Tick += CtrlTimer_Tick;
-            ctrlTimer.Start();
+            //ctrlTimer = new System.Windows.Forms.Timer();
+            //ctrlTimer.Interval = 200; // 5 Hz retries
+            //ctrlTimer.Tick += CtrlTimer_Tick;
+            //ctrlTimer.Start();
 
             // Load User Manual pages
             allPages = new UserControl[]
